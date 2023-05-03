@@ -1,0 +1,6 @@
+{
+	"extends": "@sapphire/ts-config/extra-strict",
+	"compilerOptions": {
+		"typeRoots": ["node_modules/@types", "@types/**"]
+	}
+}
