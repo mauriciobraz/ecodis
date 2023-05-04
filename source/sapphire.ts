@@ -1,17 +1,11 @@
 import { resolve } from 'path';
 
-import { SapphireClient } from '@sapphire/framework';
+import { SapphireClient, container } from '@sapphire/framework';
 import type { ClientOptions } from 'discord.js';
 
 import { readdirRecursiveSync } from './utils/fs-utils';
+import { PrismaClient } from '@prisma/client';
 
-/**
- * Extends {@link SapphireClient} to add custom functionalities.
- *
- * @features
- * - Registers all stores in the `modules` folder.
- * - Alias for `interaction-handlers` store as `interactions`.
- */
 export class CustomSapphireClient extends SapphireClient {
 	public constructor(options: ClientOptions) {
 		super(options);
@@ -25,5 +19,17 @@ export class CustomSapphireClient extends SapphireClient {
 				this.stores.registerPath(folder);
 			}
 		}
+	}
+
+	public override async login(token?: string) {
+		container.database = new PrismaClient();
+		await container.database.$connect();
+
+		return super.login(token);
+	}
+
+	public override async destroy() {
+		await container.database.$disconnect();
+		return super.destroy();
 	}
 }

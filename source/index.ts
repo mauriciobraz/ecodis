@@ -10,18 +10,21 @@ import { CustomSapphireClient } from './sapphire';
 import { CONFIG } from './utils/constants/config';
 
 const client = new CustomSapphireClient({
+	regexPrefix: /^!/,
+	defaultPrefix: ['!'],
 	baseUserDirectory: __dirname,
 	intents: [
 		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMembers,
-		GatewayIntentBits.GuildMessages
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.MessageContent
 	],
 	hmr: {
 		enabled: process.env.NODE_ENV === 'development'
 	},
 	logger: {
 		level: CONFIG.LOG_LEVEL
-	}
+	},
+	loadMessageCommandListeners: true
 });
 
 async function main(): Promise<void> {

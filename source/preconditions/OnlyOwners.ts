@@ -2,11 +2,10 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Precondition } from '@sapphire/framework';
 import type { CommandInteraction, ContextMenuCommandInteraction, Message } from 'discord.js';
 
-import { CONFIG } from '../../../utils/constants/config';
+import { CONFIG } from '../utils/constants/config';
 
 @ApplyOptions<Precondition.Options>({
-	name: 'OnlyOwners',
-	position: 0
+	name: 'OnlyOwners'
 })
 export class OnlyOwnersPrecondition extends Precondition {
 	public override messageRun(message: Message) {
