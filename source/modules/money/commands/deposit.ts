@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
-
 import { TransactionType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
@@ -13,7 +11,7 @@ import type { Message } from 'discord.js';
 })
 export class DepositCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
-		const amountResult = await args.pickResult('number');
+		const amountResult = await args.pickResult('string');
 
 		if (amountResult.isErr()) {
 			await message.reply({
@@ -25,7 +23,7 @@ export class DepositCommand extends Command {
 
 		const amount = amountResult.unwrap();
 
-		if (amount <= 0) {
+		if (typeof amount === 'number' && amount <= 0) {
 			await message.reply({
 				content: 'Você não pode depositar menos que 1 moeda!'
 			});
@@ -46,7 +44,7 @@ export class DepositCommand extends Command {
 			}
 		});
 
-		if (currentBalance.balance < amount) {
+		if (typeof amount === 'number' && currentBalance.balance < amount) {
 			await message.reply({
 				content: 'Você não tem moedas suficientes para depositar.'
 			});
@@ -60,7 +58,7 @@ export class DepositCommand extends Command {
 			},
 			data: {
 				balance: {
-					decrement: amount
+					decrement: typeof amount === 'number' ? amount : currentBalance.balance
 				},
 				transactions: {
 					create: {
@@ -71,14 +69,17 @@ export class DepositCommand extends Command {
 								create: { discordId: message.guildId }
 							}
 						},
-						amount
+						amount: typeof amount === 'number' ? amount : currentBalance.balance
 					}
 				}
 			}
 		});
 
 		await message.reply({
-			content: `Você depositou **${amount}** moedas com sucesso!`
+			content:
+				typeof amount === 'number'
+					? `Você depositou **${amount}** moedas com sucesso!`
+					: 'Você depositou todas as suas moedas com sucesso!'
 		});
 	}
 }

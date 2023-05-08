@@ -48,8 +48,14 @@ model User {
 
   transactions Transaction[]
 
-  disease    UserDisease?
-  isArrested Boolean      @default(false)
+  disease UserDisease?
+
+  arrestedAt DateTime?
+
+  energy          Int       @default(1000)
+  energyUpdatedAt DateTime?
+
+  lastDaily DateTime?
 
   diamonds Int @default(0)
 
@@ -58,6 +64,7 @@ model User {
 }
 
 enum TransactionType {
+  Crime
   Deposit
   Withdraw
 }

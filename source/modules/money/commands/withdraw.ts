@@ -13,7 +13,7 @@ import type { Message } from 'discord.js';
 })
 export class DepositCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
-		const amountResult = await args.pickResult('number');
+		const amountResult = await args.pickResult('string');
 
 		if (amountResult.isErr()) {
 			await message.reply({
@@ -25,9 +25,15 @@ export class DepositCommand extends Command {
 
 		const amount = amountResult.unwrap();
 
-		if (amount <= 0) {
+		if (typeof amount === 'number' && amount <= 0) {
 			await message.reply({
 				content: 'Você não pode sacar menos que 1 moeda!'
+			});
+
+			return;
+		} else if (amount !== 'tudo') {
+			await message.reply({
+				content: 'Você precisa especificar um valor para sacar ou "tudo" para sacar tudo.'
 			});
 
 			return;
@@ -46,7 +52,20 @@ export class DepositCommand extends Command {
 			}
 		});
 
-		if (currentBalance.balance < amount) {
+		const transactionResult = await this.container.database.transaction.aggregate({
+			where: { user: { discordId: message.author.id } },
+			_sum: { amount: true }
+		});
+
+		if (transactionResult._sum.amount === null) {
+			await message.reply({
+				content: 'Você não tem moedas suficientes para sacar.'
+			});
+
+			return;
+		}
+
+		if (typeof amount === 'number' && currentBalance.balance < amount) {
 			await message.reply({
 				content: 'Você não tem moedas suficientes para sacar.'
 			});
@@ -60,7 +79,7 @@ export class DepositCommand extends Command {
 			},
 			data: {
 				balance: {
-					increment: amount
+					increment: typeof amount === 'number' ? amount : transactionResult._sum.amount
 				},
 				transactions: {
 					create: {
@@ -71,14 +90,17 @@ export class DepositCommand extends Command {
 								create: { discordId: message.guildId }
 							}
 						},
-						amount: -amount
+						amount:
+							typeof amount === 'number' ? -amount : -transactionResult._sum.amount
 					}
 				}
 			}
 		});
 
 		await message.reply({
-			content: `Você sacou ${amount} moedas!`
+			content: `Você sacou ${
+				typeof amount === 'number' ? amount : transactionResult._sum.amount
+			} moedas!`
 		});
 	}
 }

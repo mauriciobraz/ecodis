@@ -10,7 +10,13 @@ export const configSchema = z.object({
 		.enum(['Trace', 'Debug', 'Info', 'Warn', 'Error', 'Fatal', 'None'])
 		.transform((value) => LogLevel[value]),
 
-	OWNERS: z.string().transform((value) => value.split(','))
+	OWNERS: z.string().transform((value) => value.split(',')),
+
+	DAILY_AMOUNT: z.string().transform((value) => parseInt(value, 10)),
+
+	ENERGY_RESET_TIME: z.string().transform((value) => parseInt(value, 10)),
+
+	MAX_ENERGY: z.string().transform((value) => parseInt(value, 10))
 });
 
 export type ConfigType = z.infer<typeof configSchema>;
