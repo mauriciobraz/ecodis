@@ -7,7 +7,7 @@ import { MAXIMUM_BET_PRIZE, calculatePrize } from '../../../utils/modules/games'
 import type { Message } from 'discord.js';
 
 const CRIME_ENERGY_COST = 100;
-const PERCENTAGE_TO_GET_CAUGHT = /* 80% */ 0.8;
+const PERCENTAGE_TO_GET_CAUGHT = /* 80% */ 0.1;
 
 @ApplyOptions<Command.Options>({
 	name: 'crime',
@@ -77,7 +77,7 @@ export class CrimeCommand extends Command {
 				energy: {
 					decrement: CRIME_ENERGY_COST
 				},
-				balance: {
+				dirtyBalance: {
 					increment: prize
 				},
 				transactions: {

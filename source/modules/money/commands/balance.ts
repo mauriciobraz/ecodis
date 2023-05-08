@@ -2,7 +2,8 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command, container } from '@sapphire/framework';
 
 import type { Args } from '@sapphire/framework';
-import type { Message } from 'discord.js';
+import { EmbedBuilder, type Message } from 'discord.js';
+import dedent from 'ts-dedent';
 
 @ApplyOptions<Command.Options>({
 	name: 'saldo',
@@ -28,8 +29,24 @@ export class BalanceCommand extends Command {
 			_sum: { amount: true }
 		});
 
+		const embed = new EmbedBuilder()
+			.setColor('Blurple')
+			.setAuthor({
+				name: userResult.tag,
+				iconURL: userResult.displayAvatarURL()
+			})
+			.setDescription(
+				dedent`
+					💵 | Carteira: $${user?.balance ?? 0}
+					🏦 | Banco: $${transactionResult._sum.amount ?? 0}
+					💰 | Dinheiro sujo: $${user?.dirtyBalance ?? 0}
+					💠 | Diamantes: ${user?.diamonds}
+					🏅 | ~~Rank: **NO RANK**~~
+				`
+			);
+
 		await message.reply({
-			content: `O usuário ${userResult} tem ${user?.balance} moedas, ${user?.diamonds} diamantes, ${user?.dirtyBalance} moedas sujas e ${transactionResult._sum.amount} moedas no banco.`
+			embeds: [embed]
 		});
 	}
 }

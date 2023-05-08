@@ -22,8 +22,9 @@ export class DepositCommand extends Command {
 		}
 
 		const amount = amountResult.unwrap();
+		const numberAmount = Number(amount);
 
-		if (typeof amount === 'number' && amount <= 0) {
+		if (!isNaN(numberAmount) && numberAmount < 1) {
 			await message.reply({
 				content: 'Você não pode depositar menos que 1 moeda!'
 			});
@@ -44,7 +45,18 @@ export class DepositCommand extends Command {
 			}
 		});
 
-		if (typeof amount === 'number' && currentBalance.balance < amount) {
+		const transactionResult = await this.container.database.transaction.aggregate({
+			where: { user: { discordId: message.author.id } },
+			_sum: { amount: true }
+		});
+
+		const balanceInBank = transactionResult._sum.amount ?? 0;
+
+		if (
+			amount !== 'tudo' &&
+			(balanceInBank === 0 || balanceInBank < numberAmount) &&
+			currentBalance.balance < numberAmount
+		) {
 			await message.reply({
 				content: 'Você não tem moedas suficientes para depositar.'
 			});
@@ -58,7 +70,7 @@ export class DepositCommand extends Command {
 			},
 			data: {
 				balance: {
-					decrement: typeof amount === 'number' ? amount : currentBalance.balance
+					decrement: amount === 'tudo' ? currentBalance.balance : numberAmount
 				},
 				transactions: {
 					create: {
@@ -69,7 +81,7 @@ export class DepositCommand extends Command {
 								create: { discordId: message.guildId }
 							}
 						},
-						amount: typeof amount === 'number' ? amount : currentBalance.balance
+						amount: amount === 'tudo' ? currentBalance.balance : numberAmount
 					}
 				}
 			}
@@ -77,9 +89,9 @@ export class DepositCommand extends Command {
 
 		await message.reply({
 			content:
-				typeof amount === 'number'
-					? `Você depositou **${amount}** moedas com sucesso!`
-					: 'Você depositou todas as suas moedas com sucesso!'
+				amount === 'tudo'
+					? 'Você depositou todas as suas moedas com sucesso!'
+					: `Você depositou **${amount}** moedas com sucesso!`
 		});
 	}
 }

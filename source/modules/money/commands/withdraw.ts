@@ -24,16 +24,35 @@ export class DepositCommand extends Command {
 		}
 
 		const amount = amountResult.unwrap();
+		const numberAmount = parseInt(amount, 10);
 
-		if (typeof amount === 'number' && amount <= 0) {
+		if (numberAmount < 1) {
 			await message.reply({
 				content: 'Você não pode sacar menos que 1 moeda!'
 			});
 
 			return;
-		} else if (amount !== 'tudo') {
+		}
+
+		if (isNaN(numberAmount) && amount !== 'tudo') {
 			await message.reply({
 				content: 'Você precisa especificar um valor para sacar ou "tudo" para sacar tudo.'
+			});
+
+			return;
+		}
+
+		const transactionResult = await this.container.database.transaction.aggregate({
+			where: { user: { discordId: message.author.id } },
+			_sum: { amount: true }
+		});
+
+		if (
+			transactionResult._sum.amount === null ||
+			transactionResult._sum.amount < numberAmount
+		) {
+			await message.reply({
+				content: 'Você não tem moedas suficientes para sacar.'
 			});
 
 			return;
@@ -52,19 +71,6 @@ export class DepositCommand extends Command {
 			}
 		});
 
-		const transactionResult = await this.container.database.transaction.aggregate({
-			where: { user: { discordId: message.author.id } },
-			_sum: { amount: true }
-		});
-
-		if (transactionResult._sum.amount === null) {
-			await message.reply({
-				content: 'Você não tem moedas suficientes para sacar.'
-			});
-
-			return;
-		}
-
 		if (typeof amount === 'number' && currentBalance.balance < amount) {
 			await message.reply({
 				content: 'Você não tem moedas suficientes para sacar.'
@@ -79,7 +85,7 @@ export class DepositCommand extends Command {
 			},
 			data: {
 				balance: {
-					increment: typeof amount === 'number' ? amount : transactionResult._sum.amount
+					increment: amount === 'tudo' ? transactionResult._sum.amount : numberAmount
 				},
 				transactions: {
 					create: {
@@ -90,8 +96,7 @@ export class DepositCommand extends Command {
 								create: { discordId: message.guildId }
 							}
 						},
-						amount:
-							typeof amount === 'number' ? -amount : -transactionResult._sum.amount
+						amount: amount === 'tudo' ? -transactionResult._sum.amount : -numberAmount
 					}
 				}
 			}
