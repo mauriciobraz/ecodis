@@ -21,7 +21,8 @@ model Guild {
   editors    User[]   @relation(references: [id], fields: [editorsIds], name: "GuildsEditors")
   editorsIds String[] @db.ObjectId
 
-  transactions Transaction[]
+  imprisonedUsers UserPrison[]
+  transactions    Transaction[]
 }
 
 enum UserDisease {
@@ -46,11 +47,10 @@ model User {
   job   Job?    @relation(fields: [jobId], references: [id])
   jobId String? @db.ObjectId
 
-  transactions Transaction[]
+  guildPrisoners UserPrison[]
+  transactions   Transaction[]
 
   disease UserDisease?
-
-  arrestedAt DateTime?
 
   energy          Int       @default(1000)
   energyUpdatedAt DateTime?
@@ -61,6 +61,21 @@ model User {
 
   balance      Float @default(0)
   dirtyBalance Float @default(0)
+}
+
+model UserPrison {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @db.ObjectId
+
+  guild   Guild  @relation(fields: [guildId], references: [id])
+  guildId String @db.ObjectId
+
+  releasedAt DateTime?
 }
 
 enum TransactionType {

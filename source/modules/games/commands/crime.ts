@@ -2,12 +2,13 @@ import { TransactionStatus, TransactionType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 
+import { ARREST_DURATION } from '../../../utils/constants';
 import { MAXIMUM_BET_PRIZE, calculatePrize } from '../../../utils/modules/games';
 
 import type { Message } from 'discord.js';
 
 const CRIME_ENERGY_COST = 100;
-const PERCENTAGE_TO_GET_CAUGHT = /* 80% */ 0.1;
+const PERCENTAGE_TO_GET_CAUGHT = /* 80% */ 0.8;
 
 @ApplyOptions<Command.Options>({
 	name: 'crime',
@@ -55,7 +56,16 @@ export class CrimeCommand extends Command {
 							}
 						}
 					},
-					arrestedAt: new Date()
+					guildPrisoners: {
+						create: {
+							guild: {
+								connectOrCreate: {
+									where: { discordId: message.guildId },
+									create: { discordId: message.guildId }
+								}
+							}
+						}
+					}
 				}
 			});
 
