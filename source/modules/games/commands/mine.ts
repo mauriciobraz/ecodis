@@ -7,7 +7,8 @@ import {
 	ButtonStyle,
 	ComponentType,
 	time,
-	type GuildTextBasedChannel
+	type GuildTextBasedChannel,
+	type RepliableInteraction
 } from 'discord.js';
 
 import { ZodParsers, getItemId } from '../../../utils/items';
@@ -71,7 +72,10 @@ const DEFAULT_GENERATE_GRID_OPTIONS: GenerateGridOptions = {
 const MAX_GRID_SIZE = 5;
 
 /** The amount of time in milliseconds to wait for a response from the user. */
-const RESPONSE_TIMEOUT = 30e3;
+const RESPONSE_TIMEOUT = 120e3;
+
+/** How many times the user can mine a grid item before it disappears. */
+const DEFAULT_PICKAXE_DURABILITY = 30;
 
 @ApplyOptions<Command.Options>({
 	name: 'mina',
@@ -82,7 +86,7 @@ export class MineCommand extends Command {
 	public override registerApplicationCommands(registry: ChatInputCommand.Registry) {
 		registry.registerChatInputCommand(
 			(builder) => builder.setName(this.name).setDescription(this.description),
-			{ idHints: ['1105677404745248801'] }
+			{ idHints: ['1105845674433597480'] }
 		);
 	}
 
@@ -92,8 +96,13 @@ export class MineCommand extends Command {
 		await MineCommand.start(interaction);
 	}
 
-	public static async start(interaction: Command.ChatInputCommandInteraction<CachedInGuild>) {
-		await MineCommand.createOrResetPickaxe(interaction.user.id);
+	public static async start(interaction: RepliableInteraction<CachedInGuild>) {
+		if (!interaction.channelId) {
+			throw new Error('Unexpected: The channel was not cached nor could be fetched.');
+		}
+
+		// NOTE: This is only for testing purposes.
+		// await MineCommand.upsertPickaxe(interaction.user.id);
 
 		const pickaxe = await MineCommand.getUserPickaxe(interaction.user.id);
 
@@ -108,7 +117,7 @@ export class MineCommand extends Command {
 
 		if (pickaxe.durability <= 0) {
 			await interaction.reply({
-				ephemeral: true,
+				// ephemeral: true,
 				content: 'Sua picareta está quebrada! Compre uma nova na loja.'
 			});
 
@@ -120,7 +129,7 @@ export class MineCommand extends Command {
 
 		await interaction.reply({
 			components: gridComponents,
-			ephemeral: true,
+			// ephemeral: true,
 			content: `Esta partida acabará ${time(
 				addMilliseconds(new Date(), RESPONSE_TIMEOUT),
 				'R'
@@ -170,7 +179,7 @@ export class MineCommand extends Command {
 		});
 
 		// FIXME: There is something wrong with this function.
-		// await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
+		await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
 
 		if (item === MineItem.Stone) {
 			await interaction.editReply({
@@ -218,10 +227,10 @@ export class MineCommand extends Command {
 	 * Creates a pickaxe for the user if they don't have one or resets the
 	 * durability of the current user's pickaxe.
 	 */
-	public static async createOrResetPickaxe(userId: string) {
+	public static async upsertPickaxe(userId: string) {
 		const pickaxeId = await getItemId('Pickaxe');
 
-		const inventoryExists = await container.database.inventory.findFirst({
+		const inventoryWithPickaxe = await container.database.inventory.findFirst({
 			where: {
 				user: {
 					discordId: userId
@@ -237,7 +246,7 @@ export class MineCommand extends Command {
 			}
 		});
 
-		if (!inventoryExists) {
+		if (!inventoryWithPickaxe) {
 			await container.database.inventory.create({
 				data: {
 					user: {
@@ -249,7 +258,7 @@ export class MineCommand extends Command {
 					items: {
 						create: {
 							itemId: pickaxeId,
-							data: { durability: 100 }
+							data: { durability: DEFAULT_PICKAXE_DURABILITY }
 						}
 					}
 				}
@@ -258,19 +267,28 @@ export class MineCommand extends Command {
 			return;
 		}
 
+		const userPickaxe = await this.getUserPickaxe(userId);
+
 		await container.database.inventory.update({
 			where: {
-				id: inventoryExists.id
+				id: inventoryWithPickaxe.id
 			},
 			data: {
 				items: {
-					update: {
+					upsert: {
 						where: {
 							id: pickaxeId
 						},
-						data: {
+						create: {
+							itemId: pickaxeId,
 							data: {
-								durability: 100
+								durability: DEFAULT_PICKAXE_DURABILITY
+							}
+						},
+						update: {
+							data: {
+								durability:
+									(userPickaxe?.durability ?? DEFAULT_PICKAXE_DURABILITY) - 1
 							}
 						}
 					}

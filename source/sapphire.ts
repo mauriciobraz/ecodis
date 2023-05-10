@@ -33,8 +33,7 @@ export class CustomSapphireClient extends SapphireClient {
 				storage: {
 					type: 'memory',
 					options: {
-						size: 1024,
-						log: container.logger
+						size: 1024
 					}
 				},
 				models: [

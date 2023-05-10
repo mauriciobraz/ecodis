@@ -137,6 +137,7 @@ enum ItemType {
   Food
   Farm
   Tool
+  Ore
 }
 
 model Item {
@@ -153,7 +154,13 @@ model Item {
 
   type  ItemType
   emoji String
-  price Float
+
+  price           Float
+  priceInDiamonds Boolean @default(false)
+
+  // This allows to have a custom data for each item.
+  // For example, a weapon can have a damage property and a armor can have a defense property.
+  data Json?
 }
 
 model InventoryItem {
