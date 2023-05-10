@@ -36,7 +36,7 @@ const bree = new Bree({
 	jobs: [
 		{
 			name: 'regenerations',
-			interval: 'every 5 seconds'
+			interval: 'every 120 seconds'
 		}
 	]
 });

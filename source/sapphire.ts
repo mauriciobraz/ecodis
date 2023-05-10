@@ -1,10 +1,13 @@
 import { resolve } from 'path';
 
+import { PrismaClient } from '@prisma/client';
 import { SapphireClient, container } from '@sapphire/framework';
-import type { ClientOptions } from 'discord.js';
+import { createPrismaRedisCache } from 'prisma-redis-middleware';
 
 import { readdirRecursiveSync } from './utils/fs-utils';
-import { PrismaClient } from '@prisma/client';
+
+import type { ClientOptions } from 'discord.js';
+import { createItemsIfNotExists } from './utils/items';
 
 export class CustomSapphireClient extends SapphireClient {
 	public constructor(options: ClientOptions) {
@@ -24,6 +27,26 @@ export class CustomSapphireClient extends SapphireClient {
 	public override async login(token?: string) {
 		container.database = new PrismaClient();
 		await container.database.$connect();
+
+		container.database.$use(
+			createPrismaRedisCache({
+				storage: {
+					type: 'memory',
+					options: {
+						size: 1024,
+						log: container.logger
+					}
+				},
+				models: [
+					{
+						model: 'Item',
+						cacheTime: 720
+					}
+				]
+			})
+		);
+
+		await createItemsIfNotExists();
 
 		return super.login(token);
 	}
