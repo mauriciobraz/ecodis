@@ -1,7 +1,7 @@
 import { Command } from '@sapphire/framework';
 import { pickRandom } from '@sapphire/utilities';
 
-import { MINIMUM_BET_PRIZE, calculatePrize } from '../../../utils/modules/games';
+import { MINIMUM_BET_PRIZE, calculatePrize } from '../utilities';
 
 import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';

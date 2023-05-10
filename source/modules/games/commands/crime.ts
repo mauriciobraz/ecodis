@@ -2,8 +2,7 @@ import { TransactionStatus, TransactionType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 
-import { ARREST_DURATION } from '../../../utils/constants';
-import { MAXIMUM_BET_PRIZE, calculatePrize } from '../../../utils/modules/games';
+import { MAXIMUM_BET_PRIZE, calculatePrize } from '../utilities';
 
 import type { Message } from 'discord.js';
 

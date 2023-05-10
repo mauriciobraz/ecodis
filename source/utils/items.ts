@@ -6,11 +6,11 @@ import { container } from '@sapphire/pieces';
 export enum ItemSlug {
 	Pickaxe = 'Pickaxe',
 
-	OreSapphire = 'OreSapphire',
-	OreAmethyst = 'OreAmethyst',
-	OreDiamond = 'OreDiamond',
-	OreEmerald = 'OreEmerald',
-	OreRuby = 'OreRuby',
+	Sapphire = 'Sapphire',
+	Amethyst = 'Amethyst',
+	Diamond = 'Diamond',
+	Emerald = 'Emerald',
+	Ruby = 'Ruby',
 
 	Banana = 'Banana',
 	Chocolate = 'Chocolate',
@@ -48,10 +48,10 @@ export async function createItemsIfNotExists() {
 
 	await container.database.item.upsert({
 		where: {
-			slug: ItemSlug.OreSapphire
+			slug: ItemSlug.Sapphire
 		},
 		create: {
-			slug: ItemSlug.OreSapphire,
+			slug: ItemSlug.Sapphire,
 			type: ItemType.Ore,
 
 			emoji: '💎',
@@ -66,10 +66,10 @@ export async function createItemsIfNotExists() {
 
 	await container.database.item.upsert({
 		where: {
-			slug: ItemSlug.OreEmerald
+			slug: ItemSlug.Emerald
 		},
 		create: {
-			slug: ItemSlug.OreEmerald,
+			slug: ItemSlug.Emerald,
 			type: ItemType.Ore,
 
 			emoji: '💚',
@@ -84,10 +84,10 @@ export async function createItemsIfNotExists() {
 
 	await container.database.item.upsert({
 		where: {
-			slug: ItemSlug.OreSapphire
+			slug: ItemSlug.Sapphire
 		},
 		create: {
-			slug: ItemSlug.OreSapphire,
+			slug: ItemSlug.Sapphire,
 			type: ItemType.Ore,
 
 			emoji: '💙',
@@ -102,10 +102,10 @@ export async function createItemsIfNotExists() {
 
 	await container.database.item.upsert({
 		where: {
-			slug: ItemSlug.OreRuby
+			slug: ItemSlug.Ruby
 		},
 		create: {
-			slug: ItemSlug.OreRuby,
+			slug: ItemSlug.Ruby,
 			type: ItemType.Ore,
 
 			emoji: '❤️',
@@ -120,10 +120,10 @@ export async function createItemsIfNotExists() {
 
 	await container.database.item.upsert({
 		where: {
-			slug: ItemSlug.OreAmethyst
+			slug: ItemSlug.Amethyst
 		},
 		create: {
-			slug: ItemSlug.OreAmethyst,
+			slug: ItemSlug.Amethyst,
 			type: ItemType.Ore,
 
 			emoji: '💜',
@@ -310,5 +310,9 @@ export async function getItemId(slug: ItemSlug | keyof typeof ItemSlug) {
 export const ZodParsers = {
 	[ItemSlug.Pickaxe]: z.object({
 		durability: z.number().positive().min(0).max(100)
+	}),
+	WeaponData: z.object({
+		robberyChance: z.number().positive().min(0).max(1),
+		bankHeistChance: z.number().positive().min(0).max(1)
 	})
 };
