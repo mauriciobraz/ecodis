@@ -84,7 +84,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 						.setLabel(item.name)
 						.setEmoji(item.emoji)
 						.setDescription(item.description)
-						.setDescription(`→ Clique para comprar o item ${item.name}`)
+						.setDescription(`→ ${item.priceInDiamonds ? '💎' : '💰'} ${item.price}`)
 				)
 			]);
 
