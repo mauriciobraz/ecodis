@@ -1,17 +1,19 @@
+import { ItemType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { InteractionHandler, InteractionHandlerTypes, Result } from '@sapphire/framework';
-
-import { ItemType } from '@prisma/client';
 import {
+	ActionRowBuilder,
+	ComponentType,
 	StringSelectMenuBuilder,
 	StringSelectMenuOptionBuilder,
-	type StringSelectMenuInteraction,
-	ActionRowBuilder,
 	type GuildTextBasedChannel,
-	ComponentType
+	type StringSelectMenuInteraction
 } from 'discord.js';
-import type { Option } from '@sapphire/framework';
+
+import { DEFAULT_ITEM_DATA, userHasMoreThanOneUniqueItem } from '../../../utils/items';
 import { ItemTypeEmoji, ItemTypeNames } from '../commands/shop';
+
+import type { Option } from '@sapphire/framework';
 
 const ItemTypeDescription = {
 	[ItemType.Armor]: '↓ Lista de armaduras',
@@ -131,6 +133,27 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			throw new Error('Unexpected: The item was not cached nor could be fetched.');
 		}
 
+		if (
+			selectedItem.data &&
+			typeof selectedItem.data === 'object' &&
+			'unique' in selectedItem.data
+		) {
+			const alreadyHavePickaxe = await userHasMoreThanOneUniqueItem(
+				['IronPickaxe', 'DiamondPickaxe'],
+				interaction.user.id
+			);
+
+			if (alreadyHavePickaxe) {
+				await interaction.editReply({
+					content:
+						'Você já tem uma picareta e não pode comprar mais de uma! Compre uma quando a sua quebrar.',
+					components: []
+				});
+
+				return;
+			}
+		}
+
 		const user = await this.container.database.user.upsert({
 			where: {
 				discordId: interaction.user.id
@@ -163,16 +186,27 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 				}
 			}),
 
-			this.container.database.inventory.update({
+			this.container.database.inventory.upsert({
 				where: {
 					userId: user.id
 				},
-				data: {
+				create: {
 					items: {
 						create: {
-							itemId: selectedItem.id
+							itemId: selectedItem.id,
+							data: DEFAULT_ITEM_DATA[selectedItem.slug]
 						}
-					}
+					},
+					userId: user.id
+				},
+				update: {
+					items: {
+						create: {
+							itemId: selectedItem.id,
+							data: DEFAULT_ITEM_DATA[selectedItem.slug]
+						}
+					},
+					userId: user.id
 				}
 			})
 		]);

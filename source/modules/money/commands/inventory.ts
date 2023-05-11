@@ -1,7 +1,8 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 
-import type { Message } from 'discord.js';
+import { EmbedBuilder, type Message } from 'discord.js';
+import { ItemSlug } from '../../../utils/items';
 
 @ApplyOptions<Command.Options>({
 	name: 'inventory',
@@ -35,14 +36,24 @@ export class InventoryCommand extends Command {
 			}
 		});
 
-		console.log({
-			user
-		});
+		if (!user.inventory?.items.length) {
+			await message.reply({
+				content: 'Seu inventário está vazio! Compre algum item com o comando `!loja`!'
+			});
+
+			return;
+		}
+
+		const inventoryEmbed = new EmbedBuilder()
+			.setTitle(`Inventário de ${message.author.tag}`)
+			.setDescription(
+				user.inventory.items
+					.map(({ item, amount }) => `• ${item.emoji} ${item.name} **x${amount}**`)
+					.join('\n')
+			);
 
 		await message.reply({
-			content: `Your inventory:\n${user.inventory?.items
-				.map((item) => `- ${item.item.name} x${item.amount}`)
-				.join('\n')}`
+			embeds: [inventoryEmbed]
 		});
 	}
 }

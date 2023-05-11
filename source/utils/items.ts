@@ -4,7 +4,10 @@ import { ItemType } from '@prisma/client';
 import { container } from '@sapphire/pieces';
 
 export enum ItemSlug {
-	Pickaxe = 'Pickaxe',
+	// Pickaxe = 'Pickaxe',
+
+	IronPickaxe = 'IronPickaxe',
+	DiamondPickaxe = 'DiamondPickaxe',
 
 	Sapphire = 'Sapphire',
 	Amethyst = 'Amethyst',
@@ -27,17 +30,44 @@ export enum ItemSlug {
 export async function createItemsIfNotExists() {
 	await container.database.item.upsert({
 		where: {
-			slug: ItemSlug.Pickaxe
+			slug: ItemSlug.IronPickaxe
 		},
 		create: {
-			slug: ItemSlug.Pickaxe,
+			slug: ItemSlug.IronPickaxe,
 			type: ItemType.Tool,
 
-			emoji: '⛏️',
+			emoji: '<:stone_pickaxe:1106218448041812079>',
 			price: 100,
 
-			name: 'Picareta',
-			description: 'Uma picareta para minerar minérios.'
+			name: 'Picareta de Ferro',
+			description: 'Uma picareta normal de ferro.',
+
+			data: {
+				defaultDurability: 30,
+				unique: true
+			}
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.DiamondPickaxe
+		},
+		create: {
+			slug: ItemSlug.DiamondPickaxe,
+			type: ItemType.Tool,
+
+			emoji: '<:diamond_pickaxe:1106218468497445015>',
+			price: 300,
+
+			name: 'Picareta de Diamante',
+			description: 'Uma picareta de diamante bem resistente',
+
+			data: {
+				defaultDurability: 90,
+				unique: true
+			}
 		},
 		update: {}
 	});
@@ -306,13 +336,50 @@ export async function getItemId(slug: ItemSlug | keyof typeof ItemSlug) {
 	}))!.id;
 }
 
+/** Checks whether a user has more than one of a specific item. */
+export async function userHasMoreThanOneUniqueItem(
+	slugs: (ItemSlug | keyof typeof ItemSlug)[],
+	userId: string
+) {
+	const count = await container.database.inventoryItem.count({
+		where: {
+			inventory: {
+				user: {
+					discordId: userId
+				}
+			},
+			item: {
+				slug: {
+					in: slugs
+				}
+			}
+		}
+	});
+
+	return count >= 1;
+}
+
 /** Parsers for items that have `data`. */
 export const ZodParsers = {
-	[ItemSlug.Pickaxe]: z.object({
-		durability: z.number().positive().min(0).max(100)
+	UserPickaxe: z.object({
+		durability: z.number().positive().min(0)
+	}),
+	ItemPickaxe: z.object({
+		defaultDurability: z.number().positive().min(0),
+		unique: z.boolean().default(true)
 	}),
 	WeaponData: z.object({
 		robberyChance: z.number().positive().min(0).max(1),
 		bankHeistChance: z.number().positive().min(0).max(1)
 	})
+};
+
+export const DEFAULT_ITEM_DATA: Record<string, object> = {
+	[ItemSlug.IronPickaxe]: {
+		durability: 2
+	} as z.infer<typeof ZodParsers.UserPickaxe>,
+
+	[ItemSlug.DiamondPickaxe]: {
+		durability: 3
+	} as z.infer<typeof ZodParsers.UserPickaxe>
 };

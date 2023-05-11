@@ -13,8 +13,6 @@ import {
 
 import { ZodParsers, getItemId } from '../../../utils/items';
 
-import type { z } from 'zod';
-
 type CachedInGuild = 'cached' | 'raw';
 
 enum MineItem {
@@ -72,10 +70,7 @@ const DEFAULT_GENERATE_GRID_OPTIONS: GenerateGridOptions = {
 const MAX_GRID_SIZE = 5;
 
 /** The amount of time in milliseconds to wait for a response from the user. */
-const RESPONSE_TIMEOUT = 120e3;
-
-/** How many times the user can mine a grid item before it disappears. */
-const DEFAULT_PICKAXE_DURABILITY = 30;
+const RESPONSE_TIMEOUT = 3e3;
 
 @ApplyOptions<Command.Options>({
 	name: 'mina',
@@ -100,9 +95,6 @@ export class MineCommand extends Command {
 		if (!interaction.channelId) {
 			throw new Error('Unexpected: The channel was not cached nor could be fetched.');
 		}
-
-		// NOTE: This is only for testing purposes.
-		// await MineCommand.upsertPickaxe(interaction.user.id);
 
 		const pickaxe = await MineCommand.getUserPickaxe(interaction.user.id);
 
@@ -174,10 +166,6 @@ export class MineCommand extends Command {
 			throw new Error('Unexpected: The button was out of bounds.');
 		}
 
-		container.logger.info({
-			ivi: pickaxe.inventoryItemId
-		});
-
 		// FIXME: There is something wrong with this function.
 		await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
 
@@ -204,97 +192,42 @@ export class MineCommand extends Command {
 	 * @returns The user's pickaxe data or `null` if the user doesn't have a pickaxe.
 	 */
 	public static async getUserPickaxe(userId: string) {
-		const pickaxeId = await getItemId('Pickaxe');
+		const pickaxesIds = [await getItemId('IronPickaxe'), await getItemId('DiamondPickaxe')];
 
 		const userHasPickaxe = await container.database.inventoryItem.findFirst({
-			where: { inventory: { user: { discordId: userId } }, itemId: pickaxeId },
-			select: { id: true, data: true }
+			where: {
+				inventory: {
+					user: {
+						discordId: userId
+					}
+				},
+				itemId: {
+					in: pickaxesIds
+				}
+			},
+			select: {
+				id: true,
+				data: true
+			}
 		});
 
 		if (!userHasPickaxe) return null;
 
-		if (!ZodParsers.Pickaxe.safeParse(userHasPickaxe?.data).success) {
+		const pickaxe = ZodParsers.UserPickaxe.safeParse(userHasPickaxe.data);
+
+		console.log({
+			pickaxe,
+			rawPickaxe: userHasPickaxe.data
+		});
+
+		if (!pickaxe.success) {
 			throw new Error('Unexpected: The pickaxe data is not valid.');
 		}
 
 		return {
-			...(userHasPickaxe.data as z.infer<typeof ZodParsers.Pickaxe>),
+			...pickaxe.data,
 			inventoryItemId: userHasPickaxe.id
 		};
-	}
-
-	/**
-	 * Creates a pickaxe for the user if they don't have one or resets the
-	 * durability of the current user's pickaxe.
-	 */
-	public static async upsertPickaxe(userId: string) {
-		const pickaxeId = await getItemId('Pickaxe');
-
-		const inventoryWithPickaxe = await container.database.inventory.findFirst({
-			where: {
-				user: {
-					discordId: userId
-				},
-				items: {
-					some: {
-						itemId: pickaxeId
-					}
-				}
-			},
-			select: {
-				id: true
-			}
-		});
-
-		if (!inventoryWithPickaxe) {
-			await container.database.inventory.create({
-				data: {
-					user: {
-						connectOrCreate: {
-							where: { discordId: userId },
-							create: { discordId: userId }
-						}
-					},
-					items: {
-						create: {
-							itemId: pickaxeId,
-							data: { durability: DEFAULT_PICKAXE_DURABILITY }
-						}
-					}
-				}
-			});
-
-			return;
-		}
-
-		const userPickaxe = await this.getUserPickaxe(userId);
-
-		await container.database.inventory.update({
-			where: {
-				id: inventoryWithPickaxe.id
-			},
-			data: {
-				items: {
-					upsert: {
-						where: {
-							id: pickaxeId
-						},
-						create: {
-							itemId: pickaxeId,
-							data: {
-								durability: DEFAULT_PICKAXE_DURABILITY
-							}
-						},
-						update: {
-							data: {
-								durability:
-									(userPickaxe?.durability ?? DEFAULT_PICKAXE_DURABILITY) - 1
-							}
-						}
-					}
-				}
-			}
-		});
 	}
 
 	/**
@@ -307,8 +240,20 @@ export class MineCommand extends Command {
 			select: { data: true }
 		});
 
-		if (!ZodParsers.Pickaxe.safeParse(oldItem?.data).success) {
+		const pickaxe = ZodParsers.UserPickaxe.safeParse(oldItem?.data);
+
+		if (!pickaxe.success) {
 			throw new Error('Unexpected: The pickaxe data is not valid.');
+		}
+
+		if (pickaxe.data.durability === 1) {
+			await container.database.inventoryItem.delete({
+				where: {
+					id: inventoryItemId
+				}
+			});
+
+			return;
 		}
 
 		await container.database.inventoryItem.update({
@@ -317,7 +262,7 @@ export class MineCommand extends Command {
 			},
 			data: {
 				data: {
-					durability: (oldItem?.data as z.infer<typeof ZodParsers.Pickaxe>).durability - 1
+					durability: pickaxe.data.durability - 1
 				}
 			}
 		});
