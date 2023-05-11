@@ -133,6 +133,38 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			throw new Error('Unexpected: The item was not cached nor could be fetched.');
 		}
 
+		// Check if the user has enough money.
+		const user = await this.container.database.user.upsert({
+			where: {
+				discordId: interaction.user.id
+			},
+			create: {
+				discordId: interaction.user.id,
+				inventory: {
+					create: {}
+				}
+			},
+			update: {},
+			select: {
+				id: true,
+				balance: true,
+				diamonds: true
+			}
+		});
+
+		if (
+			selectedItem.priceInDiamonds
+				? user.diamonds < selectedItem.price
+				: user.balance < selectedItem.price
+		) {
+			await interaction.editReply({
+				content: `Você não tem dinheiro suficiente para comprar o item **${selectedItem.name}**.`,
+				components: []
+			});
+
+			return;
+		}
+
 		if (
 			selectedItem.data &&
 			typeof selectedItem.data === 'object' &&
@@ -153,22 +185,6 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 				return;
 			}
 		}
-
-		const user = await this.container.database.user.upsert({
-			where: {
-				discordId: interaction.user.id
-			},
-			create: {
-				discordId: interaction.user.id,
-				inventory: {
-					create: {}
-				}
-			},
-			update: {},
-			select: {
-				id: true
-			}
-		});
 
 		if (!user) {
 			throw new Error('Unexpected: The user was not in database');
