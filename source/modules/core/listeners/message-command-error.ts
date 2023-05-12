@@ -11,6 +11,8 @@ import {
 })
 export class MessageCommandErrorListener extends Listener {
 	public override async run(error: UserError, payload: MessageCommandErrorPayload) {
+		if (Reflect.get(Object(error.context), 'silent')) return;
+
 		await payload.message.reply({
 			content: error.message
 		});

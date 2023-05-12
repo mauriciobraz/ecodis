@@ -23,6 +23,8 @@ model Guild {
 
   imprisonedUsers UserPrison[]
   transactions    Transaction[]
+
+  blacklistedCommands String[]
 }
 
 enum UserDisease {
@@ -128,8 +130,6 @@ model Job {
   cooldown DateTime?
   salary   Float
 }
-
-// Item AND Inventory
 
 enum ItemType {
   Weapon

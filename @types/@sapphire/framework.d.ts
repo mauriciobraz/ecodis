@@ -3,6 +3,7 @@ declare module '@sapphire/framework' {
 		OnlyOwners: never;
 		EditorOnly: never;
 		NotArrested: never;
+		NotBlacklisted: never;
 	}
 }
 
