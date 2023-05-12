@@ -28,10 +28,12 @@ export class TopDiamondsCommand extends Command {
 		}
 
 		const topDiamondsEmbed = new EmbedBuilder()
-			.setTitle(`Top ${TOP_USERS_COUNT} Users with the Most Diamonds`)
+			.setTitle(`Top ${TOP_USERS_COUNT} usuários com mais diamantes`)
 			.setDescription(
 				topUsers
-					.map((user, index) => `#${index + 1} - <@${user.discordId}>: ${user.diamonds}`)
+					.map(
+						(user, index) => `**#${index + 1}** <@${user.discordId}>: ${user.diamonds}`
+					)
 					.join('\n')
 			)
 			.setColor(0x2b2d31);

@@ -33,7 +33,7 @@ export class TopBalanceCommand extends Command {
 		}
 
 		const topBalanceEmbed = new EmbedBuilder()
-			.setTitle(`Top ${TOP_USERS_COUNT} Users with the Highest Balance`)
+			.setTitle(`Top ${TOP_USERS_COUNT} usuário com mais dinheiro`)
 			.setDescription(
 				topUsers
 					.map(
