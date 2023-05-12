@@ -376,10 +376,10 @@ export const ZodParsers = {
 
 export const DEFAULT_ITEM_DATA: Record<string, object> = {
 	[ItemSlug.IronPickaxe]: {
-		durability: 2
+		durability: 30
 	} as z.infer<typeof ZodParsers.UserPickaxe>,
 
 	[ItemSlug.DiamondPickaxe]: {
-		durability: 3
+		durability: 90
 	} as z.infer<typeof ZodParsers.UserPickaxe>
 };
