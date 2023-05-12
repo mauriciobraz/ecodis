@@ -6,11 +6,13 @@ import {
 	ButtonBuilder,
 	ButtonStyle,
 	ComponentType,
+	Message,
 	time,
 	type GuildTextBasedChannel,
 	type RepliableInteraction
 } from 'discord.js';
 
+import type { ChatInputCommandInteraction } from 'discord.js';
 import { ZodParsers, getItemId } from '../../../utils/items';
 
 type CachedInGuild = 'cached' | 'raw';
@@ -85,33 +87,57 @@ export class MineCommand extends Command {
 		);
 	}
 
-	public override async chatInputRun(
-		interaction: Command.ChatInputCommandInteraction<CachedInGuild>
-	) {
+	public override async messageRun(message: Message<boolean>) {
+		await MineCommand.start(message);
+	}
+
+	public override async chatInputRun(interaction: ChatInputCommandInteraction<CachedInGuild>) {
 		await MineCommand.start(interaction);
 	}
 
-	public static async start(interaction: RepliableInteraction<CachedInGuild>) {
-		if (!interaction.channelId) {
+	public static async start(interactionOrMessage: RepliableInteraction | Message) {
+		if (!interactionOrMessage.channelId) {
 			throw new Error('Unexpected: The channel was not cached nor could be fetched.');
 		}
 
-		const pickaxe = await MineCommand.getUserPickaxe(interaction.user.id);
+		// Polyfills
+
+		const userId =
+			'author' in interactionOrMessage
+				? interactionOrMessage.author.id
+				: interactionOrMessage.user.id;
+
+		const pickaxe = await MineCommand.getUserPickaxe(userId);
 
 		if (!pickaxe) {
-			await interaction.reply({
-				ephemeral: true,
-				content: 'Você não tem uma picareta para minerar! Compre uma na loja.'
-			});
+			const missingPickaxeContent =
+				'Você não tem uma picareta para minerar! Compre uma na loja.';
+
+			if (interactionOrMessage instanceof Message)
+				await interactionOrMessage.reply({
+					content: missingPickaxeContent
+				});
+			else
+				await interactionOrMessage.reply({
+					content: missingPickaxeContent,
+					ephemeral: true
+				});
 
 			return;
 		}
 
 		if (pickaxe.durability <= 0) {
-			await interaction.reply({
-				// ephemeral: true,
-				content: 'Sua picareta está quebrada! Compre uma nova na loja.'
-			});
+			const brokenPickaxeContent = 'Sua picareta está quebrada! Compre uma nova na loja.';
+
+			if (interactionOrMessage instanceof Message)
+				await interactionOrMessage.reply({
+					content: brokenPickaxeContent
+				});
+			else
+				await interactionOrMessage.reply({
+					content: brokenPickaxeContent,
+					ephemeral: true
+				});
 
 			return;
 		}
@@ -119,19 +145,27 @@ export class MineCommand extends Command {
 		const grid = MineCommand.generateGrid();
 		const gridComponents = MineCommand.parseGridToDiscordComponents(grid);
 
-		await interaction.reply({
-			components: gridComponents,
-			// ephemeral: true,
-			content: `Esta partida acabará ${time(
-				addMilliseconds(new Date(), RESPONSE_TIMEOUT),
-				'R'
-			)} (durabilidade da picareta: ${pickaxe.durability})`
-		});
+		const gameEndsAt = time(addMilliseconds(new Date(), RESPONSE_TIMEOUT), 'R');
+		const gameStartedContent = `Esta partida acabará ${gameEndsAt} (durabilidade da picareta: ${pickaxe.durability})`;
+
+		let message: Message | null = null;
+
+		if (interactionOrMessage instanceof Message)
+			message = await interactionOrMessage.reply({
+				components: gridComponents,
+				content: gameStartedContent
+			});
+		else
+			await interactionOrMessage.reply({
+				components: gridComponents,
+				content: gameStartedContent,
+				ephemeral: true
+			});
 
 		const channel =
-			interaction.channel ??
-			((await interaction.client.channels.fetch(
-				interaction.channelId
+			interactionOrMessage.channel ??
+			((await interactionOrMessage.client.channels.fetch(
+				interactionOrMessage.channelId
 			)) as GuildTextBasedChannel | null);
 
 		if (!channel) {
@@ -142,17 +176,27 @@ export class MineCommand extends Command {
 			channel.awaitMessageComponent({
 				componentType: ComponentType.Button,
 				filter: (componentInteraction) =>
-					componentInteraction.user.id === interaction.user.id &&
+					componentInteraction.user.id === userId &&
 					componentInteraction.customId.startsWith('MINE&'),
 				time: RESPONSE_TIMEOUT
 			})
 		);
 
 		if (collectorResult.isErr()) {
-			await interaction.editReply({
-				content: 'A partida foi cancelada por inatividade!',
-				components: []
-			});
+			const timeoutContent = 'A partida foi cancelada por inatividade!';
+
+			if (interactionOrMessage instanceof Message) {
+				if (!message) throw new Error('Message was not cached on message command context.');
+
+				await message.edit({
+					content: timeoutContent,
+					components: []
+				});
+			} else
+				await interactionOrMessage.editReply({
+					content: timeoutContent,
+					components: []
+				});
 
 			return;
 		}
@@ -169,21 +213,39 @@ export class MineCommand extends Command {
 		// FIXME: There is something wrong with this function.
 		await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
 
-		if (item === MineItem.Stone) {
-			await interaction.editReply({
-				content: 'Você perdeu! Mais sorte na próxima vez!',
-				components: []
-			});
-
-			return;
-		}
-
 		// TODO: await MineCommand.handleItemFound();
 
-		await interaction.editReply({
-			content: `Você encontrou um(a) ${item}!`,
-			components: []
-		});
+		if (item === MineItem.Stone) {
+			const lostContent = 'Você perdeu! Mais sorte na próxima vez!';
+
+			if (interactionOrMessage instanceof Message) {
+				if (!message) throw new Error('Message was not cached on message command context.');
+
+				await message.edit({
+					content: lostContent,
+					components: []
+				});
+			} else
+				await interactionOrMessage.editReply({
+					content: lostContent,
+					components: []
+				});
+		}
+
+		const wonContent = `Você encontrou um(a) ${item}!`;
+
+		if (interactionOrMessage instanceof Message) {
+			if (!message) throw new Error('Message was not cached on message command context.');
+
+			await message.edit({
+				content: wonContent,
+				components: []
+			});
+		} else
+			await interactionOrMessage.editReply({
+				content: wonContent,
+				components: []
+			});
 	}
 
 	/**
@@ -214,11 +276,6 @@ export class MineCommand extends Command {
 		if (!userHasPickaxe) return null;
 
 		const pickaxe = ZodParsers.UserPickaxe.safeParse(userHasPickaxe.data);
-
-		console.log({
-			pickaxe,
-			rawPickaxe: userHasPickaxe.data
-		});
 
 		if (!pickaxe.success) {
 			throw new Error('Unexpected: The pickaxe data is not valid.');
