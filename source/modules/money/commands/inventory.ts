@@ -2,7 +2,6 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 
 import { EmbedBuilder, type Message } from 'discord.js';
-import { ItemSlug } from '../../../utils/items';
 
 @ApplyOptions<Command.Options>({
 	name: 'inventory',
@@ -20,6 +19,16 @@ export class InventoryCommand extends Command {
 				discordId: message.author.id,
 				inventory: {
 					create: {}
+				},
+				userGuildBalances: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: message.guildId },
+								create: { discordId: message.guildId }
+							}
+						}
+					}
 				}
 			},
 			update: {},

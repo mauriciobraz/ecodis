@@ -2,7 +2,7 @@ import { parentPort } from 'worker_threads';
 
 import { PrismaClient } from '@prisma/client';
 import { Time } from '@sapphire/time-utilities';
-import { addMilliseconds, millisecondsToMinutes, sub } from 'date-fns';
+import { addMilliseconds } from 'date-fns';
 
 import { ARREST_DURATION } from '../utils/constants';
 

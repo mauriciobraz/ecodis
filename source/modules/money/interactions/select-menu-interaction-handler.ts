@@ -61,6 +61,10 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			throw new Error('Unexpected: The channel was not cached nor could be fetched.');
 		}
 
+		if (!interaction.inGuild()) {
+			throw new Error('Unexpected: The command is not being called from a guild');
+		}
+
 		const itemsFromCategory = await this.container.database.item.findMany({
 			where: {
 				type: category
@@ -142,20 +146,38 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 				discordId: interaction.user.id,
 				inventory: {
 					create: {}
+				},
+				userGuildBalances: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: interaction.guildId },
+								create: { discordId: interaction.guildId }
+							}
+						}
+					}
 				}
 			},
 			update: {},
 			select: {
 				id: true,
-				balance: true,
-				diamonds: true
+				diamonds: true,
+				userGuildBalances: {
+					where: {
+						guild: {
+							discordId: interaction.guildId
+						}
+					}
+				}
 			}
 		});
+
+		const userGuildBalance = user.userGuildBalances[0];
 
 		if (
 			selectedItem.priceInDiamonds
 				? user.diamonds < selectedItem.price
-				: user.balance < selectedItem.price
+				: userGuildBalance.balance < selectedItem.price
 		) {
 			await interaction.editReply({
 				content: `Você não tem dinheiro suficiente para comprar o item **${selectedItem.name}**.`,
@@ -196,8 +218,17 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 					discordId: interaction.user.id
 				},
 				data: {
-					[selectedItem.priceInDiamonds ? 'diamonds' : 'balance']: {
-						decrement: selectedItem.price
+					userGuildBalances: {
+						update: {
+							where: {
+								id: userGuildBalance.id
+							},
+							data: {
+								[selectedItem.priceInDiamonds ? 'diamonds' : 'balance']: {
+									decrement: selectedItem.price
+								}
+							}
+						}
 					}
 				}
 			}),

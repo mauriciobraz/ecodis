@@ -58,20 +58,42 @@ export class DepositCommand extends Command {
 			return;
 		}
 
-		const currentBalance = await this.container.database.user.upsert({
+		const user = await this.container.database.user.upsert({
 			where: {
 				discordId: message.author.id
 			},
 			create: {
-				discordId: message.author.id
+				discordId: message.author.id,
+				userGuildBalances: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: message.guildId },
+								create: { discordId: message.guildId }
+							}
+						}
+					}
+				}
 			},
 			update: {},
 			select: {
-				balance: true
+				userGuildBalances: {
+					where: {
+						guild: {
+							discordId: message.guildId
+						}
+					},
+					select: {
+						id: true,
+						balance: true
+					}
+				}
 			}
 		});
 
-		if (typeof amount === 'number' && currentBalance.balance < amount) {
+		const userGuildBalance = user.userGuildBalances[0];
+
+		if (typeof amount === 'number' && userGuildBalance.balance < amount) {
 			await message.reply({
 				content: 'Você não tem moedas suficientes para sacar.'
 			});
@@ -84,8 +106,18 @@ export class DepositCommand extends Command {
 				discordId: message.author.id
 			},
 			data: {
-				balance: {
-					increment: amount === 'tudo' ? transactionResult._sum.amount : numberAmount
+				userGuildBalances: {
+					update: {
+						where: {
+							id: userGuildBalance.id
+						},
+						data: {
+							balance: {
+								increment:
+									amount === 'tudo' ? transactionResult._sum.amount : numberAmount
+							}
+						}
+					}
 				},
 				transactions: {
 					create: {
@@ -102,9 +134,14 @@ export class DepositCommand extends Command {
 			}
 		});
 
+		console.log({
+			amount,
+			transactionResult: transactionResult._sum.amount
+		});
+
 		await message.reply({
 			content: `Você sacou ${
-				typeof amount === 'number' ? amount : transactionResult._sum.amount
+				isNaN(Number(amount)) ? transactionResult._sum.amount : amount
 			} moedas!`
 		});
 	}

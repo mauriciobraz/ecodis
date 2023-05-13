@@ -14,14 +14,24 @@ export class TopBalanceCommand extends Command {
 	public override async messageRun(message: Message<true>) {
 		const topUsers = await this.container.database.user.findMany({
 			where: {
-				balance: {
-					gt: 0
+				userGuildBalances: {
+					some: {
+						guild: {
+							discordId: message.guildId
+						}
+					}
 				}
 			},
 			orderBy: {
-				balance: 'desc'
+				userGuildBalances: {
+					_count: 'desc'
+				}
 			},
-			take: TOP_USERS_COUNT
+			take: TOP_USERS_COUNT,
+			select: {
+				userGuildBalances: true,
+				discordId: true
+			}
 		});
 
 		if (topUsers.length === 0) {
@@ -38,7 +48,9 @@ export class TopBalanceCommand extends Command {
 				topUsers
 					.map(
 						(user, index) =>
-							`**#${index + 1}** <@${user.discordId}>: ${user.balance.toFixed(2)}`
+							`**#${index + 1}** <@${
+								user.discordId
+							}>: ${user.userGuildBalances[0].balance.toFixed(2)}`
 					)
 					.join('\n')
 			)

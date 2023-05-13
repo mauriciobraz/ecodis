@@ -27,15 +27,32 @@ export class BlackjackCommand extends Command {
 				discordId: message.author.id
 			},
 			create: {
-				discordId: message.author.id
+				discordId: message.author.id,
+				userGuildBalances: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: message.guildId },
+								create: { discordId: message.guildId }
+							}
+						}
+					}
+				}
 			},
 			update: {},
 			select: {
-				balance: true
+				userGuildBalances: {
+					select: {
+						id: true,
+						balance: true
+					}
+				}
 			}
 		});
 
-		if (user.balance < amount) {
+		const userGuildBalance = user.userGuildBalances[0];
+
+		if (userGuildBalance.balance < amount) {
 			await message.reply('Você não tem moedas suficientes para fazer essa aposta.');
 			return;
 		}
@@ -93,8 +110,26 @@ export class BlackjackCommand extends Command {
 							discordId: message.author.id
 						},
 						data: {
-							balance: {
-								decrement: amount
+							userGuildBalances: {
+								upsert: {
+									where: {
+										id: userGuildBalance.id
+									},
+									create: {
+										balance: -amount,
+										guild: {
+											connectOrCreate: {
+												where: { discordId: message.guildId },
+												create: { discordId: message.guildId }
+											}
+										}
+									},
+									update: {
+										balance: {
+											decrement: amount
+										}
+									}
+								}
 							}
 						}
 					});
@@ -138,8 +173,26 @@ export class BlackjackCommand extends Command {
 					discordId: message.author.id
 				},
 				data: {
-					balance: {
-						increment: amount
+					userGuildBalances: {
+						upsert: {
+							where: {
+								id: userGuildBalance.id
+							},
+							create: {
+								balance: amount,
+								guild: {
+									connectOrCreate: {
+										where: { discordId: message.guildId },
+										create: { discordId: message.guildId }
+									}
+								}
+							},
+							update: {
+								balance: {
+									increment: amount
+								}
+							}
+						}
 					}
 				}
 			});
@@ -157,8 +210,26 @@ export class BlackjackCommand extends Command {
 					discordId: message.author.id
 				},
 				data: {
-					balance: {
-						decrement: amount
+					userGuildBalances: {
+						upsert: {
+							where: {
+								id: userGuildBalance.id
+							},
+							create: {
+								balance: -amount,
+								guild: {
+									connectOrCreate: {
+										where: { discordId: message.guildId },
+										create: { discordId: message.guildId }
+									}
+								}
+							},
+							update: {
+								balance: {
+									decrement: amount
+								}
+							}
+						}
 					}
 				}
 			});

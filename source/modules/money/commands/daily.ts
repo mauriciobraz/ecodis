@@ -36,14 +36,62 @@ export class DailyCommand extends Command {
 			return;
 		}
 
-		await this.container.database.user.update({
+		const upsertUserResult = await this.container.database.user.upsert({
 			where: {
 				discordId: message.author.id
 			},
+			create: {
+				discordId: message.author.id,
+				userGuildBalances: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: message.guildId },
+								create: { discordId: message.guildId }
+							}
+						}
+					}
+				}
+			},
+			update: {
+				lastDaily: new Date()
+			},
+			select: {
+				id: true,
+				userGuildBalances: {
+					take: 1
+				}
+			}
+		});
+
+		const userId = upsertUserResult.id;
+		const userGuildBalance = upsertUserResult.userGuildBalances[0];
+
+		await this.container.database.user.update({
+			where: {
+				id: userId
+			},
 			data: {
-				lastDaily: new Date(),
-				balance: {
-					increment: CONFIG.DAILY_AMOUNT
+				userGuildBalances: {
+					upsert: {
+						where: {
+							id: userGuildBalance.id
+						},
+						create: {
+							balance: CONFIG.DAILY_AMOUNT,
+							guild: {
+								connectOrCreate: {
+									where: { discordId: message.guildId },
+									create: { discordId: message.guildId }
+								}
+							}
+						},
+						update: {
+							balance: {
+								increment: CONFIG.DAILY_AMOUNT
+							}
+						}
+					}
 				}
 			}
 		});

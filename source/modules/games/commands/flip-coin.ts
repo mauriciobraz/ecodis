@@ -46,23 +46,45 @@ export class FlipCoinCommand extends Command {
 		const { prize } = this.handleGame(choice);
 
 		if (prize !== 0) {
-			// Prize is being returned as negative when the user loses, so we don't
-			// need to check for `increment`/`decrement` on `create`/`update`.
-			await this.container.database.user.upsert({
+			const user = await this.container.database.user.upsert({
 				where: {
 					discordId: message.author.id
 				},
 				create: {
 					discordId: message.author.id,
-					balance: prize
+					userGuildBalances: {
+						create: {
+							guild: {
+								connectOrCreate: {
+									where: { discordId: message.guildId },
+									create: { discordId: message.guildId }
+								}
+							}
+						}
+					}
 				},
-				update: {
+				update: {},
+				select: {
+					userGuildBalances: {
+						select: {
+							id: true,
+							balance: true
+						}
+					},
+					energy: true
+				}
+			});
+
+			const userGuildBalance = user.userGuildBalances[0];
+
+			await this.container.database.userGuildBalance.update({
+				where: {
+					id: userGuildBalance.id
+				},
+				data: {
 					balance: {
 						increment: prize
 					}
-				},
-				select: {
-					id: true
 				}
 			});
 		}

@@ -18,15 +18,31 @@ export class BalanceCommand extends Command {
 				discordId: userResult.id
 			},
 			select: {
-				balance: true,
 				diamonds: true,
-				dirtyBalance: true
+				userGuildBalances: {
+					where: {
+						guild: {
+							discordId: message.guildId
+						}
+					},
+					select: {
+						balance: true,
+						dirtyBalance: true
+					}
+				}
 			}
 		});
 
 		const transactionResult = await container.database.transaction.aggregate({
-			where: { user: { discordId: userResult.id } },
-			_sum: { amount: true }
+			where: {
+				user: { discordId: userResult.id },
+				type: {
+					not: 'Crime'
+				}
+			},
+			_sum: {
+				amount: true
+			}
 		});
 
 		const embed = new EmbedBuilder()
@@ -37,9 +53,9 @@ export class BalanceCommand extends Command {
 			})
 			.setDescription(
 				dedent`
-					💵 | Carteira: $${user?.balance ?? 0}
+					💵 | Carteira: $${user?.userGuildBalances[0].balance ?? 0}
 					🏦 | Banco: $${transactionResult._sum.amount ?? 0}
-					💰 | Dinheiro sujo: $${user?.dirtyBalance ?? 0}
+					💰 | Dinheiro sujo: $${user?.userGuildBalances[0].dirtyBalance ?? 0}
 					💠 | Diamantes: ${user?.diamonds}
 					🏅 | ~~Rank: **NO RANK**~~
 				`

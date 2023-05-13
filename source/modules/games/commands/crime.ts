@@ -17,11 +17,35 @@ const PERCENTAGE_TO_GET_CAUGHT = /* 80% */ 0.8;
 export class CrimeCommand extends Command {
 	public override async messageRun(message: Message<true>) {
 		const user = await this.container.database.user.upsert({
-			where: { discordId: message.author.id },
-			create: { discordId: message.author.id },
-			select: { energy: true },
-			update: {}
+			where: {
+				discordId: message.author.id
+			},
+			create: {
+				discordId: message.author.id,
+				userGuildBalances: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: message.guildId },
+								create: { discordId: message.guildId }
+							}
+						}
+					}
+				}
+			},
+			update: {},
+			select: {
+				userGuildBalances: {
+					select: {
+						id: true,
+						balance: true
+					}
+				},
+				energy: true
+			}
 		});
+
+		const userGuildBalance = user.userGuildBalances[0];
 
 		if (user.energy < CRIME_ENERGY_COST) {
 			await message.reply({
@@ -86,8 +110,26 @@ export class CrimeCommand extends Command {
 				energy: {
 					decrement: CRIME_ENERGY_COST
 				},
-				dirtyBalance: {
-					increment: prize
+				userGuildBalances: {
+					upsert: {
+						where: {
+							id: userGuildBalance?.id
+						},
+						create: {
+							dirtyBalance: prize,
+							guild: {
+								connectOrCreate: {
+									where: { discordId: message.guildId },
+									create: { discordId: message.guildId }
+								}
+							}
+						},
+						update: {
+							dirtyBalance: {
+								increment: prize
+							}
+						}
+					}
 				},
 				transactions: {
 					create: {

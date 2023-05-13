@@ -32,18 +32,40 @@ export class DepositCommand extends Command {
 			return;
 		}
 
-		const currentBalance = await this.container.database.user.upsert({
+		const user = await this.container.database.user.upsert({
 			where: {
 				discordId: message.author.id
 			},
 			create: {
-				discordId: message.author.id
+				discordId: message.author.id,
+				userGuildBalances: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: message.guildId },
+								create: { discordId: message.guildId }
+							}
+						}
+					}
+				}
 			},
 			update: {},
 			select: {
-				balance: true
+				userGuildBalances: {
+					where: {
+						guild: {
+							discordId: message.guildId
+						}
+					},
+					select: {
+						id: true,
+						balance: true
+					}
+				}
 			}
 		});
+
+		const userGuildBalance = user.userGuildBalances[0];
 
 		const transactionResult = await this.container.database.transaction.aggregate({
 			where: { user: { discordId: message.author.id } },
@@ -55,7 +77,7 @@ export class DepositCommand extends Command {
 		if (
 			amount !== 'tudo' &&
 			(balanceInBank === 0 || balanceInBank < numberAmount) &&
-			currentBalance.balance < numberAmount
+			userGuildBalance.balance < numberAmount
 		) {
 			await message.reply({
 				content: 'Você não tem moedas suficientes para depositar.'
@@ -69,8 +91,20 @@ export class DepositCommand extends Command {
 				discordId: message.author.id
 			},
 			data: {
-				balance: {
-					decrement: amount === 'tudo' ? currentBalance.balance : numberAmount
+				userGuildBalances: {
+					update: {
+						where: {
+							id: userGuildBalance.id
+						},
+						data: {
+							balance: {
+								decrement:
+									amount === 'tudo'
+										? transactionResult._sum.amount ?? 0
+										: numberAmount
+							}
+						}
+					}
 				},
 				transactions: {
 					create: {
@@ -81,7 +115,7 @@ export class DepositCommand extends Command {
 								create: { discordId: message.guildId }
 							}
 						},
-						amount: amount === 'tudo' ? currentBalance.balance : numberAmount
+						amount: amount === 'tudo' ? userGuildBalance.balance : numberAmount
 					}
 				}
 			}
