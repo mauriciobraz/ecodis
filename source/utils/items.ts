@@ -4,8 +4,6 @@ import { ItemType } from '@prisma/client';
 import { container } from '@sapphire/pieces';
 
 export enum ItemSlug {
-	// Pickaxe = 'Pickaxe',
-
 	IronPickaxe = 'IronPickaxe',
 	DiamondPickaxe = 'DiamondPickaxe',
 
@@ -20,11 +18,129 @@ export enum ItemSlug {
 	Cafe = 'Café',
 	RedBull = 'RedBull',
 
+	Soy = 'Soy',
+	Wheat = 'Wheat',
+	Beans = 'Beans',
+	Pumpkin = 'Pumpkin',
+	Cannabis = 'Cannabis',
+
 	FirearmsLicense = 'FirearmsLicense',
 	HK416 = 'HK416',
 	AK47 = 'AK47',
 	M4A1 = 'M4A1'
 }
+
+const CommonSchema = z.object({
+	/** If the user has this item and a cop searches him, it'll warn the cop about it. */
+	// illegal: z.boolean().default(false)
+	illegal: z.union([z.boolean(), z.enum(['IF_NOT FirearmsLicense'])]).default(false)
+});
+
+/** Parsers for items that have `data`. */
+export const ZodParsers = {
+	UserPickaxe: CommonSchema.extend({
+		/** The amount of durability the pickaxe has (it's used to mine blocks). */
+		durability: z.number().positive().min(0)
+	}),
+
+	ItemPickaxe: CommonSchema.extend({
+		/** The default durability of an item pickaxe. */
+		defaultDurability: z.number().positive().min(0),
+
+		/** Whether an item pickaxe is unique or not. */
+		unique: z.boolean().default(true)
+	}),
+
+	WeaponData: CommonSchema.extend({
+		/** The chance of success for a robbery with this weapon. */
+		robberyChance: z.number().positive().min(0).max(1),
+
+		/** The chance of success for a bank heist with this weapon. */
+		bankHeistChance: z.number().positive().min(0).max(1)
+	}),
+
+	Seed: CommonSchema.extend({
+		/** The time it takes for a seed to grow into a fully grown plant. */
+		growthTime: z.number().positive().min(0),
+
+		/** The amount of produce or harvest obtained from a fully grown plant. */
+		yield: z.number().positive().min(0),
+
+		/** The list of diseases that can affect a plant. */
+		diseases: z.array(z.string())
+	})
+};
+
+export const DEFAULT_ITEM_DATA = {
+	[ItemSlug.IronPickaxe]: {
+		durability: 30
+	} as z.infer<typeof ZodParsers.UserPickaxe>,
+
+	[ItemSlug.DiamondPickaxe]: {
+		durability: 90
+	} as z.infer<typeof ZodParsers.UserPickaxe>,
+
+	// Seeds
+	// Seeds
+	// Seeds
+
+	[ItemSlug.Soy]: {
+		illegal: false,
+		growthTime: 3,
+		yield: 10,
+		diseases: []
+	} as z.infer<typeof ZodParsers.Seed>,
+
+	[ItemSlug.Wheat]: {
+		illegal: false,
+		growthTime: 4,
+		yield: 8,
+		diseases: []
+	} as z.infer<typeof ZodParsers.Seed>,
+
+	[ItemSlug.Beans]: {
+		illegal: false,
+		growthTime: 5,
+		yield: 6,
+		diseases: []
+	} as z.infer<typeof ZodParsers.Seed>,
+
+	[ItemSlug.Pumpkin]: {
+		illegal: false,
+		growthTime: 6,
+		yield: 4,
+		diseases: []
+	} as z.infer<typeof ZodParsers.Seed>,
+
+	[ItemSlug.Cannabis]: {
+		illegal: true,
+		growthTime: 7,
+		yield: 3,
+		diseases: []
+	} as z.infer<typeof ZodParsers.Seed>,
+
+	// Weapons
+	// Weapons
+	// Weapons
+
+	[ItemSlug.HK416]: {
+		illegal: 'IF_NOT FirearmsLicense',
+		robberyChance: 0.95,
+		bankHeistChance: 0.75
+	} as z.infer<typeof ZodParsers.WeaponData>,
+
+	[ItemSlug.AK47]: {
+		illegal: 'IF_NOT FirearmsLicense',
+		robberyChance: 0.75,
+		bankHeistChance: 0.5
+	} as z.infer<typeof ZodParsers.WeaponData>,
+
+	[ItemSlug.M4A1]: {
+		illegal: 'IF_NOT FirearmsLicense',
+		robberyChance: 0.85,
+		bankHeistChance: 0.6
+	} as z.infer<typeof ZodParsers.WeaponData>
+};
 
 /** Creates all the items if they don't exist in the database. */
 export async function createItemsIfNotExists() {
@@ -42,10 +158,7 @@ export async function createItemsIfNotExists() {
 			name: 'Picareta de Ferro',
 			description: 'Uma picareta normal de ferro.',
 
-			data: {
-				defaultDurability: 30,
-				unique: true
-			}
+			data: DEFAULT_ITEM_DATA[ItemSlug.IronPickaxe]
 		},
 		update: {}
 	});
@@ -64,10 +177,7 @@ export async function createItemsIfNotExists() {
 			name: 'Picareta de Diamante',
 			description: 'Uma picareta de diamante bem resistente',
 
-			data: {
-				defaultDurability: 90,
-				unique: true
-			}
+			data: DEFAULT_ITEM_DATA[ItemSlug.DiamondPickaxe]
 		},
 		update: {}
 	});
@@ -238,6 +348,105 @@ export async function createItemsIfNotExists() {
 		update: {}
 	});
 
+	// Seeds
+	// Seeds
+	// Seeds
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Soy
+		},
+		create: {
+			slug: ItemSlug.Soy,
+			type: ItemType.Farm,
+
+			emoji: '🌱',
+			price: 10,
+
+			name: 'Soy',
+			description: 'A seed for planting soy.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Soy]
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Wheat
+		},
+		create: {
+			slug: ItemSlug.Wheat,
+			type: ItemType.Farm,
+
+			emoji: '🌾',
+			price: 15,
+
+			name: 'Wheat',
+			description: 'A seed for planting wheat.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Wheat]
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Beans
+		},
+		create: {
+			slug: ItemSlug.Beans,
+			type: ItemType.Farm,
+
+			emoji: '🌱',
+			price: 12,
+
+			name: 'Beans',
+			description: 'A seed for planting beans.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Beans]
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Pumpkin
+		},
+		create: {
+			slug: ItemSlug.Pumpkin,
+			type: ItemType.Farm,
+
+			emoji: '🎃',
+			price: 20,
+
+			name: 'Pumpkin',
+			description: 'A seed for planting pumpkins.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Pumpkin]
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Cannabis
+		},
+		create: {
+			slug: ItemSlug.Cannabis,
+			type: ItemType.Farm,
+
+			emoji: '🌿',
+			price: 25,
+
+			name: 'Cannabis',
+			description: 'A seed for planting cannabis.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Cannabis]
+		},
+		update: {}
+	});
+
 	// Weapons
 	// Weapons
 	// Weapons
@@ -255,8 +464,7 @@ export async function createItemsIfNotExists() {
 			priceInDiamonds: true,
 
 			name: 'Porte de Arma',
-			description: 'Libera o acesso para usar armas legalmente.',
-			data: {}
+			description: 'Libera o acesso para usar armas legalmente.'
 		},
 		update: {}
 	});
@@ -275,10 +483,8 @@ export async function createItemsIfNotExists() {
 
 			name: 'HK416',
 			description: 'Um fuzil de assalto de alta qualidade.',
-			data: {
-				robberyChance: 0.95,
-				bankHeistChance: 0.75
-			}
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.HK416]
 		},
 		update: {}
 	});
@@ -297,10 +503,8 @@ export async function createItemsIfNotExists() {
 
 			name: 'AK47',
 			description: 'Um fuzil de assalto de baixa qualidade.',
-			data: {
-				robberyChance: 0.75,
-				bankHeistChance: 0.5
-			}
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.AK47]
 		},
 		update: {}
 	});
@@ -319,10 +523,8 @@ export async function createItemsIfNotExists() {
 
 			name: 'M4A1',
 			description: 'Um fuzil de assalto padrão.',
-			data: {
-				robberyChance: 0.85,
-				bankHeistChance: 0.6
-			}
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.M4A1]
 		},
 		update: {}
 	});
@@ -358,28 +560,3 @@ export async function userHasMoreThanOneUniqueItem(
 
 	return count >= 1;
 }
-
-/** Parsers for items that have `data`. */
-export const ZodParsers = {
-	UserPickaxe: z.object({
-		durability: z.number().positive().min(0)
-	}),
-	ItemPickaxe: z.object({
-		defaultDurability: z.number().positive().min(0),
-		unique: z.boolean().default(true)
-	}),
-	WeaponData: z.object({
-		robberyChance: z.number().positive().min(0).max(1),
-		bankHeistChance: z.number().positive().min(0).max(1)
-	})
-};
-
-export const DEFAULT_ITEM_DATA: Record<string, object> = {
-	[ItemSlug.IronPickaxe]: {
-		durability: 30
-	} as z.infer<typeof ZodParsers.UserPickaxe>,
-
-	[ItemSlug.DiamondPickaxe]: {
-		durability: 90
-	} as z.infer<typeof ZodParsers.UserPickaxe>
-};
