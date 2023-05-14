@@ -37,23 +37,30 @@ export class WithdrawCommand extends Command {
 			return;
 		}
 
-		let withdrawAmount: number | undefined;
+		const { balanceInBank, balance } = await UserQueries.getUserBalances({
+			userId: message.author.id,
+			guildId: message.guildId
+		});
 
-		if (amount === 'tudo') {
-			const userBalances = await UserQueries.getUserBalances({
-				userId: message.author.id,
-				guildId: message.guildId
+		const withdrawAmount = amount === 'tudo' ? balance : numberAmount;
+
+		if (
+			amount !== 'tudo' &&
+			(balanceInBank === 0 || balanceInBank < numberAmount) &&
+			balance < numberAmount
+		) {
+			await message.reply({
+				content: 'Você não tem moedas suficientes para sacar.'
 			});
 
-			withdrawAmount = userBalances.balance;
-		} else {
-			withdrawAmount = numberAmount;
+			return;
 		}
+
 		const { updatedBalance, updatedBankBalance } = await UserQueries.updateBalance({
 			userId: message.author.id,
 			guildId: message.guildId,
-			balance: ['decrement', withdrawAmount],
-			bankBalance: ['increment', withdrawAmount]
+			balance: ['increment', withdrawAmount],
+			bankBalance: ['decrement', withdrawAmount]
 		});
 
 		await message.reply({

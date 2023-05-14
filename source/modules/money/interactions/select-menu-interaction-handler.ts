@@ -15,6 +15,7 @@ import { UserQueries } from '../../../utils/queries/user';
 import { ItemTypeEmoji, ItemTypeNames } from '../commands/shop';
 
 import type { Option } from '@sapphire/framework';
+import { ShopQueries } from '../../../utils/queries/shop';
 
 const ItemTypeDescription = {
 	[ItemType.Armor]: '↓ Lista de armaduras',
@@ -180,8 +181,14 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		await UserQueries.updateBalance({
 			userId: interaction.user.id,
 			guildId: interaction.guildId,
-			balance: ['decrement', selectedItem.price],
-			bankBalance: ['increment', selectedItem.price]
+			balance: ['decrement', selectedItem.price]
+		});
+
+		await ShopQueries.buyItem({
+			amount: 1,
+			guildId: interaction.guildId,
+			userId: interaction.user.id,
+			itemId: selectedItem.id
 		});
 
 		await interaction.editReply({

@@ -161,34 +161,16 @@ export namespace UserQueries {
 						balance: true,
 						bankBalance: true,
 						dirtyBalance: true
-						// senderTransactions: {
-						// 	select: {
-						// 		amount: true
-						// 	}
-						// },
-						// recipientTransactions: {
-						// 	select: {
-						// 		amount: true
-						// 	}
-						// }
 					}
 				}
 			}
 		});
 
-		// const senderBankTransactionsBalance = userGuildBalance.senderTransactions
-		// 	.map((t) => t.amount)
-		// 	.reduce((acc, curr) => acc + curr, 0);
-
-		// const recipientBankTransactionsBalance = userGuildBalance.recipientTransactions
-		// 	.map((t) => t.amount)
-		// 	.reduce((acc, curr) => acc + curr, 0);
-
 		return {
 			diamonds,
-			balance: userGuildBalance.balance,
-			dirtyBalance: userGuildBalance.dirtyBalance,
-			balanceInBank: userGuildBalance.bankBalance
+			balance: userGuildBalance?.balance ?? 0,
+			dirtyBalance: userGuildBalance?.dirtyBalance ?? 0,
+			balanceInBank: userGuildBalance?.bankBalance ?? 0
 		};
 	}
 
@@ -315,13 +297,15 @@ export namespace UserQueries {
 			await container.database.userGuildData.create({
 				data: {
 					user: {
-						connect: {
-							discordId: userId
+						connectOrCreate: {
+							create: { discordId: userId },
+							where: { discordId: userId }
 						}
 					},
 					guild: {
-						connect: {
-							discordId: guildId
+						connectOrCreate: {
+							create: { discordId: guildId },
+							where: { discordId: guildId }
 						}
 					},
 					lastDaily: new Date()
@@ -342,38 +326,55 @@ export namespace UserQueries {
 		limit: number,
 		field: 'balance' | 'bankBalance' | 'dirtyBalance' | 'diamonds'
 	): Promise<{ userId: string; value: number }[]> {
+		console.log({
+			guildId,
+			limit,
+			field
+		});
+
 		const topUsers = await container.database.user.findMany({
-			...(guildId && {
-				where: {
-					userGuildDatas: {
-						some: {
-							guild: {
-								discordId: guildId
-							}
-						}
-					}
-				}
-			}),
-			orderBy: {
-				userGuildDatas: {
-					[field]: 'desc'
-				}
-			},
 			take: limit,
+			where: {
+				...(field === 'diamonds'
+					? { diamonds: { not: 0 } }
+					: {
+							userGuildDatas: {
+								some: {
+									[field]: { not: 0 }
+								}
+							}
+					  })
+			},
 			select: {
-				userGuildDatas: {
-					select: {
-						[field]: true
-					}
-				},
-				diamonds: field === 'diamonds',
+				...(field === 'diamonds'
+					? { diamonds: true }
+					: {
+							userGuildDatas: {
+								select: {
+									[field]: true
+								},
+								...(guildId && {
+									where: {
+										guild: {
+											discordId: guildId
+										}
+									}
+								})
+							}
+					  }),
 				discordId: true
 			}
 		});
 
-		return topUsers.map((user) => ({
-			userId: user.discordId,
-			value: field === 'diamonds' ? user.diamonds : user.userGuildDatas[0][field]
-		}));
+		return topUsers.map(
+			(user: {
+				discordId: string;
+				diamonds?: number;
+				userGuildDatas?: { [key: string]: number }[];
+			}) => ({
+				userId: user.discordId,
+				value: field === 'diamonds' ? user.diamonds! : user.userGuildDatas![0][field]
+			})
+		);
 	}
 }

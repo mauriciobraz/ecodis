@@ -18,6 +18,15 @@ export namespace ShopQueries {
 		}>;
 	}
 
+	export interface GetInventoryItemData {
+		id: string;
+		name: string;
+		description: string;
+		price: number;
+		amount: number;
+		emoji: string;
+	}
+
 	/**
 	 * Retrieves the inventory of a user in a specific guild.
 	 * @param userId The ID of the user whose inventory to retrieve.
@@ -46,7 +55,9 @@ export namespace ShopQueries {
 			select: {
 				userGuildDatas: {
 					where: {
-						guildId
+						guild: {
+							discordId: guildId
+						}
 					},
 					select: {
 						inventory: {
@@ -64,18 +75,42 @@ export namespace ShopQueries {
 			}
 		});
 
-		return {
-			userId,
-			items:
-				userGuildData.inventory?.items.map((item) => ({
+		if (!userGuildData) {
+			return {
+				userId,
+				items: []
+			};
+		}
+
+		const inventoryItems = new Map<string, GetInventoryItemData>();
+
+		for (const item of userGuildData.inventory?.items || []) {
+			const slug = item.item.id;
+			if (inventoryItems.has(slug)) {
+				inventoryItems.get(slug)!.amount += item.amount;
+			} else {
+				inventoryItems.set(slug, {
 					id: item.item.id,
 					name: item.item.name,
 					description: item.item.description,
 					price: item.item.price,
 					amount: item.amount,
 					emoji: item.item.emoji
-				})) ?? []
+				});
+			}
+		}
+
+		return {
+			userId,
+			items: Array.from(inventoryItems.values())
 		};
+	}
+
+	export interface BuyItemOptions {
+		userId: string;
+		guildId: string;
+		itemId: string;
+		amount: number;
 	}
 
 	/**
@@ -86,7 +121,7 @@ export namespace ShopQueries {
 	 * @param amount The number of items to be purchased.
 	 * @returns A message indicating whether the purchase was successful or not.
 	 */
-	export async function buyItem(userId: string, guildId: string, itemId: string, amount: number) {
+	export async function buyItem({ amount, guildId, itemId, userId }: BuyItemOptions) {
 		// Fetch item information
 		const item = await container.database.item.findUnique({
 			where: {
@@ -119,14 +154,35 @@ export namespace ShopQueries {
 			balance: ['decrement', totalPrice]
 		});
 
-		const user = await container.database.user.findUnique({
+		const {
+			userGuildDatas: [userGuildData]
+		} = await container.database.user.upsert({
 			where: {
 				discordId: userId
 			},
+			create: {
+				discordId: userId,
+				userGuildDatas: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								create: { discordId: guildId },
+								where: { discordId: guildId }
+							}
+						},
+						inventory: {
+							create: {}
+						}
+					}
+				}
+			},
+			update: {},
 			select: {
 				userGuildDatas: {
 					where: {
-						guildId
+						guild: {
+							discordId: guildId
+						}
 					},
 					select: {
 						id: true
@@ -135,11 +191,13 @@ export namespace ShopQueries {
 			}
 		});
 
-		const userGuildDataId = user?.userGuildDatas[0].id;
+		if (!userGuildData) {
+			return Result.err('User guild data not found.');
+		}
 
 		await container.database.userGuildData.upsert({
 			where: {
-				id: userGuildDataId
+				id: userGuildData.id
 			},
 			create: {
 				user: {
@@ -166,19 +224,29 @@ export namespace ShopQueries {
 			},
 			update: {
 				inventory: {
-					update: {
-						items: {
-							upsert: {
-								where: {
-									id: itemId
-								},
+					upsert: {
+						create: {
+							items: {
 								create: {
 									itemId,
 									amount
-								},
-								update: {
-									amount: {
-										increment: amount
+								}
+							}
+						},
+						update: {
+							items: {
+								upsert: {
+									where: {
+										id: itemId
+									},
+									create: {
+										itemId,
+										amount
+									},
+									update: {
+										amount: {
+											increment: amount
+										}
 									}
 								}
 							}
