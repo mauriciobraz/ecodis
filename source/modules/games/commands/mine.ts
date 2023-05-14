@@ -260,7 +260,9 @@ export class MineCommand extends Command {
 			where: {
 				inventory: {
 					user: {
-						discordId: userId
+						user: {
+							discordId: userId
+						}
 					}
 				},
 				itemId: {

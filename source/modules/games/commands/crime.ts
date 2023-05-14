@@ -1,8 +1,7 @@
-import { TransactionStatus, TransactionType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 
-import { MAXIMUM_BET_PRIZE, calculatePrize } from '../utilities';
+import { calculatePrize } from '../utilities';
 
 import type { Message } from 'discord.js';
 
@@ -22,7 +21,7 @@ export class CrimeCommand extends Command {
 			},
 			create: {
 				discordId: message.author.id,
-				userGuildBalances: {
+				userGuildDatas: {
 					create: {
 						guild: {
 							connectOrCreate: {
@@ -35,19 +34,19 @@ export class CrimeCommand extends Command {
 			},
 			update: {},
 			select: {
-				userGuildBalances: {
+				userGuildDatas: {
 					select: {
 						id: true,
-						balance: true
+						balance: true,
+						energy: true
 					}
-				},
-				energy: true
+				}
 			}
 		});
 
-		const userGuildBalance = user.userGuildBalances[0];
+		const userGuildData = user.userGuildDatas[0];
 
-		if (user.energy < CRIME_ENERGY_COST) {
+		if (userGuildData.energy < CRIME_ENERGY_COST) {
 			await message.reply({
 				content: `Não tens energia suficiente para cometer um crime (custo: ${CRIME_ENERGY_COST}).`
 			});
@@ -63,22 +62,6 @@ export class CrimeCommand extends Command {
 					discordId: message.author.id
 				},
 				data: {
-					energy: {
-						decrement: CRIME_ENERGY_COST
-					},
-					transactions: {
-						create: {
-							type: TransactionType.Crime,
-							status: TransactionStatus.Failed,
-							amount: -MAXIMUM_BET_PRIZE,
-							guild: {
-								connectOrCreate: {
-									where: { discordId: message.guildId },
-									create: { discordId: message.guildId }
-								}
-							}
-						}
-					},
 					guildPrisoners: {
 						create: {
 							guild: {
@@ -107,13 +90,10 @@ export class CrimeCommand extends Command {
 				discordId: message.author.id
 			},
 			data: {
-				energy: {
-					decrement: CRIME_ENERGY_COST
-				},
-				userGuildBalances: {
+				userGuildDatas: {
 					upsert: {
 						where: {
-							id: userGuildBalance?.id
+							id: userGuildData?.id
 						},
 						create: {
 							dirtyBalance: prize,
@@ -127,19 +107,9 @@ export class CrimeCommand extends Command {
 						update: {
 							dirtyBalance: {
 								increment: prize
-							}
-						}
-					}
-				},
-				transactions: {
-					create: {
-						type: TransactionType.Crime,
-						status: TransactionStatus.Success,
-						amount: prize,
-						guild: {
-							connectOrCreate: {
-								where: { discordId: message.guildId },
-								create: { discordId: message.guildId }
+							},
+							energy: {
+								decrement: CRIME_ENERGY_COST
 							}
 						}
 					}

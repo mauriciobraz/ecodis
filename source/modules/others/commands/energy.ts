@@ -1,6 +1,7 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
-import { time, type Message } from 'discord.js';
+import type { Message } from 'discord.js';
+import { time } from 'discord.js';
 import dedent from 'ts-dedent';
 
 import { CONFIG } from '../../../utils/constants/config';
@@ -12,20 +13,48 @@ import { CONFIG } from '../../../utils/constants/config';
 })
 export class EnergyCommand extends Command {
 	public override async messageRun(message: Message) {
-		const userRecord = await this.container.database.user.upsert({
-			where: { discordId: message.author.id },
-			create: { discordId: message.author.id },
-			select: { energy: true, energyUpdatedAt: true },
-			update: {}
+		const userId = message.author.id;
+		const guildId = message.guildId!; // Assuming guildId is always available in a guild context
+
+		const {
+			userGuildDatas: [oldUserGuildData]
+		} = await this.container.database.user.upsert({
+			where: { discordId: userId },
+			create: { discordId: userId },
+			update: {},
+			select: {
+				userGuildDatas: {
+					where: {
+						guild: {
+							discordId: guildId
+						}
+					},
+					select: {
+						id: true
+					}
+				}
+			}
 		});
 
+		const userGuildData = await this.container.database.userGuildData.findUnique({
+			where: {
+				id: oldUserGuildData.id
+			},
+			select: {
+				energy: true,
+				energyUpdatedAt: true
+			}
+		});
+
+		const { energy, energyUpdatedAt } = userGuildData || { energy: 0, energyUpdatedAt: null };
+
 		const nextUpdateIn = new Date(
-			(userRecord.energyUpdatedAt ?? new Date()).getTime() + CONFIG.ENERGY_RESET_TIME
+			(energyUpdatedAt ?? new Date()).getTime() + CONFIG.ENERGY_RESET_TIME
 		);
 
 		await message.reply({
 			content: dedent`
-				Energia: ${userRecord.energy}/${CONFIG.MAX_ENERGY}
+				Energia: ${energy}/${CONFIG.MAX_ENERGY}
 				Faltam ${time(nextUpdateIn)} para recarregar sua energia.
 			`
 		});

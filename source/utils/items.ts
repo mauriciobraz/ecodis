@@ -547,7 +547,9 @@ export async function userHasMoreThanOneUniqueItem(
 		where: {
 			inventory: {
 				user: {
-					discordId: userId
+					user: {
+						discordId: userId
+					}
 				}
 			},
 			item: {

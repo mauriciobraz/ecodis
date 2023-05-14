@@ -1,10 +1,9 @@
 import { parentPort } from 'worker_threads';
-
 import { PrismaClient } from '@prisma/client';
-import { Time } from '@sapphire/time-utilities';
 import { addMilliseconds } from 'date-fns';
 
 import { ARREST_DURATION } from '../utils/constants';
+import { Time } from '@sapphire/time-utilities';
 
 async function main(): Promise<void> {
 	const prismaClient = new PrismaClient();
@@ -13,16 +12,14 @@ async function main(): Promise<void> {
 	const regeneratedArrests = await regenerateArrests(prismaClient);
 	const regeneratedEnergies = await regenerateEnergies(prismaClient);
 
-	if (parentPort)
+	if (parentPort) {
 		parentPort.postMessage(
 			`Regenerated ${regeneratedArrests} arrests and ${regeneratedEnergies} energies.`
 		);
-	else process.exit(0);
+	} else {
+		process.exit(0);
+	}
 }
-
-// FIXME: PRISMA IS NOT CHECKING CORRECTLY THE CREATED AT DATE
-// FIXME: PRISMA IS NOT CHECKING CORRECTLY THE CREATED AT DATE
-// FIXME: PRISMA IS NOT CHECKING CORRECTLY THE CREATED AT DATE
 
 /** Regenerates the arrests for every user that has been arrested for more than 24 hours. */
 async function regenerateArrests(prismaClient: PrismaClient) {
@@ -48,7 +45,7 @@ const MAX_ENERGY = 1000;
 
 /** Regenerates the energy for every user that has energy lower than 1000. */
 async function regenerateEnergies(prismaClient: PrismaClient) {
-	const affected = await prismaClient.user.updateMany({
+	const affected = await prismaClient.userGuildData.updateMany({
 		where: {
 			energy: {
 				lt: MAX_ENERGY

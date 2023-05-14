@@ -1,6 +1,9 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
-import { EmbedBuilder, type Message } from 'discord.js';
+import type { Message } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
+
+import { UserQueries } from '../../../utils/queries/user';
 
 const TOP_USERS_COUNT = 15;
 
@@ -12,18 +15,16 @@ const TOP_USERS_COUNT = 15;
 })
 export class TopDiamondsCommand extends Command {
 	public override async messageRun(message: Message<true>) {
-		const topUsers = await this.container.database.user.findMany({
-			orderBy: {
-				diamonds: 'desc'
-			},
-			take: TOP_USERS_COUNT
-		});
+		const topUsers = await UserQueries.getTopUsersByField(
+			null, // No need to specify guildId for global ranking
+			TOP_USERS_COUNT,
+			'diamonds'
+		);
 
 		if (topUsers.length === 0) {
 			await message.reply({
 				content: 'Nenhum usuário encontrado.'
 			});
-
 			return;
 		}
 
@@ -31,9 +32,7 @@ export class TopDiamondsCommand extends Command {
 			.setTitle(`Top ${TOP_USERS_COUNT} usuários com mais diamantes`)
 			.setDescription(
 				topUsers
-					.map(
-						(user, index) => `**#${index + 1}** <@${user.discordId}>: ${user.diamonds}`
-					)
+					.map((user, index) => `**#${index + 1}** <@${user.userId}>: ${user.value}`)
 					.join('\n')
 			)
 			.setColor(0x2b2d31);

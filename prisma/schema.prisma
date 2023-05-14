@@ -21,16 +21,12 @@ model Guild {
   editors    User[]   @relation(references: [id], fields: [editorsIds], name: "GuildsEditors")
   editorsIds String[] @db.ObjectId
 
-  imprisonedUsers UserPrison[]
-  transactions    Transaction[]
+  // transactions Transaction[]
+
+  imprisonedUsers   UserPrison[]
+  userGuildBalances UserGuildData[]
 
   blacklistedCommands String[]
-  UserGuildBalance    UserGuildBalance[]
-}
-
-enum UserDisease {
-  Flu
-  Tetanus
 }
 
 model User {
@@ -47,26 +43,18 @@ model User {
   guildsEditors   Guild[]  @relation(fields: [guildsEditorsId], references: [id], name: "GuildsEditors")
   guildsEditorsId String[] @db.ObjectId
 
-  job   Job?    @relation(fields: [jobId], references: [id])
-  jobId String? @db.ObjectId
-
   guildPrisoners UserPrison[]
-
-  transactions      Transaction[]
-  userGuildBalances UserGuildBalance[]
-
-  inventory Inventory?
-  disease   UserDisease?
-
-  energy          Int       @default(1000)
-  energyUpdatedAt DateTime?
-
-  lastDaily DateTime?
+  userGuildDatas UserGuildData[]
 
   diamonds Int @default(0)
 }
 
-model UserGuildBalance {
+enum Disease {
+  Flu
+  Tetanus
+}
+
+model UserGuildData {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
   createdAt DateTime @default(now())
@@ -78,8 +66,24 @@ model UserGuildBalance {
   guild   Guild  @relation(fields: [guildId], references: [id])
   guildId String @db.ObjectId
 
+  job   Job?    @relation(fields: [jobId], references: [id])
+  jobId String? @db.ObjectId
+
+  // transactions          Transaction[] @relation("UserGuildBalanceTransactions")
+  // senderTransactions    Transaction[] @relation("SenderGuildBalanceTransactions")
+  // recipientTransactions Transaction[] @relation("RecipientGuildBalanceTransactions")
+
+  lastDaily DateTime?
+
+  energy          Int       @default(1000)
+  energyUpdatedAt DateTime?
+
   balance      Float @default(0)
+  bankBalance  Float @default(0)
   dirtyBalance Float @default(0)
+
+  disease   Disease?
+  inventory Inventory?
 }
 
 model UserPrison {
@@ -97,36 +101,44 @@ model UserPrison {
   releasedAt DateTime?
 }
 
-enum TransactionType {
-  Crime
-  Deposit
-  Withdraw
-}
+// enum TransactionType {
+//   Crime
+//   Deposit
+//   Withdraw
+//   TransferIn
+//   TransferOut
+// }
 
-enum TransactionStatus {
-  Success
-  Pending
-  Failed
-}
+// enum TransactionStatus {
+//   Success
+//   Pending
+//   Failed
+// }
 
-model Transaction {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+// model Transaction {
+//   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
 
-  type   TransactionType
-  status TransactionStatus @default(Pending)
+//   type   TransactionType
+//   status TransactionStatus @default(Pending)
 
-  amount      Float
-  description String?
+//   amount      Float
+//   description String?
 
-  userId  String @db.ObjectId
-  guildId String @db.ObjectId
+//   userGuildBalance   UserGuildData? @relation("UserGuildBalanceTransactions", fields: [userGuildBalanceId], references: [id])
+//   userGuildBalanceId String?        @db.ObjectId
 
-  user  User  @relation(fields: [userId], references: [id])
-  guild Guild @relation(fields: [guildId], references: [id])
-}
+//   senderGuildBalance   UserGuildData? @relation("SenderGuildBalanceTransactions", fields: [senderGuildBalanceId], references: [id])
+//   senderGuildBalanceId String?        @db.ObjectId
+
+//   recipientGuildBalance   UserGuildData? @relation("RecipientGuildBalanceTransactions", fields: [recipientGuildBalanceId], references: [id])
+//   recipientGuildBalanceId String?        @db.ObjectId
+
+//   guild   Guild  @relation(fields: [guildId], references: [id])
+//   guildId String @db.ObjectId
+// }
 
 enum JobType {
   Cop
@@ -140,7 +152,7 @@ model Job {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users UserGuildData[]
   type  JobType
 
   cooldown DateTime?
@@ -201,8 +213,8 @@ model Inventory {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User   @relation(fields: [userId], references: [id])
-  userId String @unique @db.ObjectId
+  user   UserGuildData @relation(fields: [userId], references: [id])
+  userId String        @unique @db.ObjectId
 
   items InventoryItem[]
 }

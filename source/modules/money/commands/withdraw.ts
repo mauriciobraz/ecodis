@@ -1,17 +1,15 @@
-/* eslint-disable @typescript-eslint/require-await */
-
-import { TransactionType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
-
 import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';
+
+import { UserQueries } from '../../../utils/queries/user';
 
 @ApplyOptions<Command.Options>({
 	name: 'sacar',
 	aliases: ['withdraw']
 })
-export class DepositCommand extends Command {
+export class WithdrawCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
 		const amountResult = await args.pickResult('string');
 
@@ -19,7 +17,6 @@ export class DepositCommand extends Command {
 			await message.reply({
 				content: 'Você precisa especificar um valor para sacar.'
 			});
-
 			return;
 		}
 
@@ -30,7 +27,6 @@ export class DepositCommand extends Command {
 			await message.reply({
 				content: 'Você não pode sacar menos que 1 moeda!'
 			});
-
 			return;
 		}
 
@@ -38,111 +34,30 @@ export class DepositCommand extends Command {
 			await message.reply({
 				content: 'Você precisa especificar um valor para sacar ou "tudo" para sacar tudo.'
 			});
-
 			return;
 		}
 
-		const transactionResult = await this.container.database.transaction.aggregate({
-			where: { user: { discordId: message.author.id } },
-			_sum: { amount: true }
-		});
+		let withdrawAmount: number | undefined;
 
-		if (
-			transactionResult._sum.amount === null ||
-			transactionResult._sum.amount < numberAmount
-		) {
-			await message.reply({
-				content: 'Você não tem moedas suficientes para sacar.'
+		if (amount === 'tudo') {
+			const userBalances = await UserQueries.getUserBalances({
+				userId: message.author.id,
+				guildId: message.guildId
 			});
 
-			return;
+			withdrawAmount = userBalances.balance;
+		} else {
+			withdrawAmount = numberAmount;
 		}
-
-		const user = await this.container.database.user.upsert({
-			where: {
-				discordId: message.author.id
-			},
-			create: {
-				discordId: message.author.id,
-				userGuildBalances: {
-					create: {
-						guild: {
-							connectOrCreate: {
-								where: { discordId: message.guildId },
-								create: { discordId: message.guildId }
-							}
-						}
-					}
-				}
-			},
-			update: {},
-			select: {
-				userGuildBalances: {
-					where: {
-						guild: {
-							discordId: message.guildId
-						}
-					},
-					select: {
-						id: true,
-						balance: true
-					}
-				}
-			}
-		});
-
-		const userGuildBalance = user.userGuildBalances[0];
-
-		if (typeof amount === 'number' && userGuildBalance.balance < amount) {
-			await message.reply({
-				content: 'Você não tem moedas suficientes para sacar.'
-			});
-
-			return;
-		}
-
-		await this.container.database.user.update({
-			where: {
-				discordId: message.author.id
-			},
-			data: {
-				userGuildBalances: {
-					update: {
-						where: {
-							id: userGuildBalance.id
-						},
-						data: {
-							balance: {
-								increment:
-									amount === 'tudo' ? transactionResult._sum.amount : numberAmount
-							}
-						}
-					}
-				},
-				transactions: {
-					create: {
-						type: TransactionType.Deposit,
-						guild: {
-							connectOrCreate: {
-								where: { discordId: message.guildId },
-								create: { discordId: message.guildId }
-							}
-						},
-						amount: amount === 'tudo' ? -transactionResult._sum.amount : -numberAmount
-					}
-				}
-			}
-		});
-
-		console.log({
-			amount,
-			transactionResult: transactionResult._sum.amount
+		const { updatedBalance, updatedBankBalance } = await UserQueries.updateBalance({
+			userId: message.author.id,
+			guildId: message.guildId,
+			balance: ['decrement', withdrawAmount],
+			bankBalance: ['increment', withdrawAmount]
 		});
 
 		await message.reply({
-			content: `Você sacou ${
-				isNaN(Number(amount)) ? transactionResult._sum.amount : amount
-			} moedas!`
+			content: `Você sacou ${numberAmount} moedas! Seu saldo agora é ${updatedBalance} e seu saldo no banco é ${updatedBankBalance}.`
 		});
 	}
 }

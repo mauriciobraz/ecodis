@@ -4,6 +4,7 @@ import { Time } from '@sapphire/time-utilities';
 import { time, type Message } from 'discord.js';
 
 import { CONFIG } from '../../../utils/constants/config';
+import { UserQueries } from '../../../utils/queries/user';
 
 const DAILY_TIMEOUT = Time.Day;
 
@@ -14,86 +15,24 @@ const DAILY_TIMEOUT = Time.Day;
 })
 export class DailyCommand extends Command {
 	public override async messageRun(message: Message<true>) {
-		const alreadyClaimed = await this.container.database.user.findUnique({
-			where: {
-				discordId: message.author.id
-			},
-			select: {
-				lastDaily: true
-			}
-		});
+		const alreadyClaimed = await UserQueries.getLastDaily(message.author.id, message.guildId);
 
-		if (
-			alreadyClaimed?.lastDaily &&
-			alreadyClaimed.lastDaily.getTime() + DAILY_TIMEOUT > Date.now()
-		) {
+		if (alreadyClaimed && alreadyClaimed.getTime() + DAILY_TIMEOUT > Date.now()) {
 			await message.reply({
 				content: `Você já coletou seu dinheiro diário. Tente novamente em ${time(
-					alreadyClaimed.lastDaily
+					alreadyClaimed
 				)}.`
 			});
 
 			return;
 		}
 
-		const upsertUserResult = await this.container.database.user.upsert({
-			where: {
-				discordId: message.author.id
-			},
-			create: {
-				discordId: message.author.id,
-				userGuildBalances: {
-					create: {
-						guild: {
-							connectOrCreate: {
-								where: { discordId: message.guildId },
-								create: { discordId: message.guildId }
-							}
-						}
-					}
-				}
-			},
-			update: {
-				lastDaily: new Date()
-			},
-			select: {
-				id: true,
-				userGuildBalances: {
-					take: 1
-				}
-			}
-		});
+		await UserQueries.updateLastDaily(message.author.id, message.guildId);
 
-		const userId = upsertUserResult.id;
-		const userGuildBalance = upsertUserResult.userGuildBalances[0];
-
-		await this.container.database.user.update({
-			where: {
-				id: userId
-			},
-			data: {
-				userGuildBalances: {
-					upsert: {
-						where: {
-							id: userGuildBalance.id
-						},
-						create: {
-							balance: CONFIG.DAILY_AMOUNT,
-							guild: {
-								connectOrCreate: {
-									where: { discordId: message.guildId },
-									create: { discordId: message.guildId }
-								}
-							}
-						},
-						update: {
-							balance: {
-								increment: CONFIG.DAILY_AMOUNT
-							}
-						}
-					}
-				}
-			}
+		await UserQueries.updateBalance({
+			userId: message.author.id,
+			guildId: message.guildId,
+			balance: ['increment', CONFIG.DAILY_AMOUNT]
 		});
 
 		await message.reply({

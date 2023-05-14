@@ -10,7 +10,8 @@ import {
 	type StringSelectMenuInteraction
 } from 'discord.js';
 
-import { DEFAULT_ITEM_DATA, userHasMoreThanOneUniqueItem } from '../../../utils/items';
+import { userHasMoreThanOneUniqueItem } from '../../../utils/items';
+import { UserQueries } from '../../../utils/queries/user';
 import { ItemTypeEmoji, ItemTypeNames } from '../commands/shop';
 
 import type { Option } from '@sapphire/framework';
@@ -138,46 +139,15 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		}
 
 		// Check if the user has enough money.
-		const user = await this.container.database.user.upsert({
-			where: {
-				discordId: interaction.user.id
-			},
-			create: {
-				discordId: interaction.user.id,
-				inventory: {
-					create: {}
-				},
-				userGuildBalances: {
-					create: {
-						guild: {
-							connectOrCreate: {
-								where: { discordId: interaction.guildId },
-								create: { discordId: interaction.guildId }
-							}
-						}
-					}
-				}
-			},
-			update: {},
-			select: {
-				id: true,
-				diamonds: true,
-				userGuildBalances: {
-					where: {
-						guild: {
-							discordId: interaction.guildId
-						}
-					}
-				}
-			}
+		const { balance, diamonds } = await UserQueries.getUserBalances({
+			userId: interaction.user.id,
+			guildId: interaction.guildId
 		});
-
-		const userGuildBalance = user.userGuildBalances[0];
 
 		if (
 			selectedItem.priceInDiamonds
-				? user.diamonds < selectedItem.price
-				: userGuildBalance.balance < selectedItem.price
+				? diamonds < selectedItem.price
+				: balance < selectedItem.price
 		) {
 			await interaction.editReply({
 				content: `Você não tem dinheiro suficiente para comprar o item **${selectedItem.name}**.`,
@@ -186,7 +156,6 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 			return;
 		}
-
 		if (
 			selectedItem.data &&
 			typeof selectedItem.data === 'object' &&
@@ -208,55 +177,12 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			}
 		}
 
-		if (!user) {
-			throw new Error('Unexpected: The user was not in database');
-		}
-
-		await this.container.database.$transaction([
-			this.container.database.user.update({
-				where: {
-					discordId: interaction.user.id
-				},
-				data: {
-					userGuildBalances: {
-						update: {
-							where: {
-								id: userGuildBalance.id
-							},
-							data: {
-								[selectedItem.priceInDiamonds ? 'diamonds' : 'balance']: {
-									decrement: selectedItem.price
-								}
-							}
-						}
-					}
-				}
-			}),
-
-			this.container.database.inventory.upsert({
-				where: {
-					userId: user.id
-				},
-				create: {
-					items: {
-						create: {
-							itemId: selectedItem.id,
-							data: DEFAULT_ITEM_DATA[selectedItem.slug]
-						}
-					},
-					userId: user.id
-				},
-				update: {
-					items: {
-						create: {
-							itemId: selectedItem.id,
-							data: DEFAULT_ITEM_DATA[selectedItem.slug]
-						}
-					},
-					userId: user.id
-				}
-			})
-		]);
+		await UserQueries.updateBalance({
+			userId: interaction.user.id,
+			guildId: interaction.guildId,
+			balance: ['decrement', selectedItem.price],
+			bankBalance: ['increment', selectedItem.price]
+		});
 
 		await interaction.editReply({
 			content: `Você comprou o item ${selectedItem.name}!`,

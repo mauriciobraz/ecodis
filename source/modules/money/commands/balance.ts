@@ -1,9 +1,12 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { Command, container } from '@sapphire/framework';
+import { Command } from '@sapphire/framework';
+import { EmbedBuilder } from 'discord.js';
+import dedent from 'ts-dedent';
+
+import { UserQueries } from '../../../utils/queries/user';
 
 import type { Args } from '@sapphire/framework';
-import { EmbedBuilder, type Message } from 'discord.js';
-import dedent from 'ts-dedent';
+import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'saldo',
@@ -13,36 +16,9 @@ export class BalanceCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
 		const userResult = await args.pick('user').catch(() => message.author);
 
-		const user = await this.container.database.user.findUnique({
-			where: {
-				discordId: userResult.id
-			},
-			select: {
-				diamonds: true,
-				userGuildBalances: {
-					where: {
-						guild: {
-							discordId: message.guildId
-						}
-					},
-					select: {
-						balance: true,
-						dirtyBalance: true
-					}
-				}
-			}
-		});
-
-		const transactionResult = await container.database.transaction.aggregate({
-			where: {
-				user: { discordId: userResult.id },
-				type: {
-					not: 'Crime'
-				}
-			},
-			_sum: {
-				amount: true
-			}
+		const userBalances = await UserQueries.getUserBalances({
+			userId: userResult.id,
+			guildId: message.guildId
 		});
 
 		const embed = new EmbedBuilder()
@@ -53,10 +29,10 @@ export class BalanceCommand extends Command {
 			})
 			.setDescription(
 				dedent`
-					💵 | Carteira: $${user?.userGuildBalances[0].balance ?? 0}
-					🏦 | Banco: $${transactionResult._sum.amount ?? 0}
-					💰 | Dinheiro sujo: $${user?.userGuildBalances[0].dirtyBalance ?? 0}
-					💠 | Diamantes: ${user?.diamonds}
+					💵 | Carteira: $${userBalances.balance}
+					🏦 | Banco: $${userBalances.balanceInBank}
+					💰 | Dinheiro sujo: $${userBalances.dirtyBalance}
+					💠 | Diamantes: ${userBalances.diamonds}
 					🏅 | ~~Rank: **NO RANK**~~
 				`
 			);

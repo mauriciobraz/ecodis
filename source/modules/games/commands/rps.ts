@@ -3,6 +3,7 @@ import { Command } from '@sapphire/framework';
 import { pickRandom } from '@sapphire/utilities';
 
 import { MINIMUM_BET_AMOUNT, calculatePrize } from '../utilities';
+import { UserQueries } from '../../../utils/queries/user';
 
 import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';
@@ -49,46 +50,14 @@ export class RockPaperScissorsCommand extends Command {
 		const { isTie, prize } = this.handleGame(choice);
 
 		if (prize !== 0) {
-			const user = await this.container.database.user.upsert({
-				where: {
-					discordId: message.author.id
-				},
-				create: {
-					discordId: message.author.id,
-					userGuildBalances: {
-						create: {
-							guild: {
-								connectOrCreate: {
-									where: { discordId: message.guildId },
-									create: { discordId: message.guildId }
-								}
-							}
-						}
-					}
-				},
-				update: {},
-				select: {
-					userGuildBalances: {
-						select: {
-							id: true,
-							balance: true
-						}
-					},
-					energy: true
-				}
+			const { updatedBalance } = await UserQueries.updateBalance({
+				userId: message.author.id,
+				guildId: message.guildId,
+				balance: ['increment', prize]
 			});
 
-			const userGuildBalance = user.userGuildBalances[0];
-
-			await this.container.database.userGuildBalance.update({
-				where: {
-					id: userGuildBalance.id
-				},
-				data: {
-					balance: {
-						increment: prize
-					}
-				}
+			await message.reply({
+				content: `Ganhaste ${prize} moedas! O teu saldo atual é de ${updatedBalance} moedas.`
 			});
 		}
 

@@ -1,6 +1,8 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 
+import { UserQueries } from '../../../utils/queries/user';
+
 import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';
 
@@ -21,72 +23,14 @@ export class AddMoneyCommand extends Command {
 			return;
 		}
 
-		const existingUserGuildBalance = await this.container.database.userGuildBalance.findFirst({
-			where: {
-				user: { discordId: user.id },
-				guild: { discordId: message.guildId }
-			}
-		});
-
-		let userGuildBalanceId: string;
-
-		if (existingUserGuildBalance === null) {
-			const createdUserGuildBalance = await this.container.database.userGuildBalance.create({
-				data: {
-					user: {
-						connectOrCreate: {
-							where: { discordId: message.author.id },
-							create: { discordId: message.author.id }
-						}
-					},
-					guild: {
-						connectOrCreate: {
-							where: { discordId: message.guildId },
-							create: { discordId: message.guildId }
-						}
-					}
-				},
-				select: {
-					id: true
-				}
-			});
-
-			userGuildBalanceId = createdUserGuildBalance.id;
-		} else {
-			userGuildBalanceId = existingUserGuildBalance.id;
-		}
-
-		const updatedUser = await this.container.database.userGuildBalance.upsert({
-			where: {
-				id: userGuildBalanceId
-			},
-			create: {
-				user: {
-					connectOrCreate: {
-						where: { discordId: message.author.id },
-						create: { discordId: message.author.id }
-					}
-				},
-				guild: {
-					connectOrCreate: {
-						where: { discordId: message.guildId },
-						create: { discordId: message.guildId }
-					}
-				},
-				balance: amount
-			},
-			update: {
-				balance: {
-					increment: amount
-				}
-			},
-			select: {
-				balance: true
-			}
+		const updatedUser = await UserQueries.updateBalance({
+			userId: user.id,
+			guildId: message.guildId,
+			balance: ['increment', amount]
 		});
 
 		await message.reply({
-			content: `Você adicionou **${amount}** moedas para <@${user.id}>. Agora ele tem **${updatedUser.balance}** moedas.`
+			content: `Você adicionou **${amount}** moedas para <@${user.id}>. Agora ele tem **${updatedUser.updatedBalance}** moedas.`
 		});
 	}
 }

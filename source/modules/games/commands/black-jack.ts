@@ -28,7 +28,7 @@ export class BlackjackCommand extends Command {
 			},
 			create: {
 				discordId: message.author.id,
-				userGuildBalances: {
+				userGuildDatas: {
 					create: {
 						guild: {
 							connectOrCreate: {
@@ -41,7 +41,7 @@ export class BlackjackCommand extends Command {
 			},
 			update: {},
 			select: {
-				userGuildBalances: {
+				userGuildDatas: {
 					select: {
 						id: true,
 						balance: true
@@ -50,7 +50,7 @@ export class BlackjackCommand extends Command {
 			}
 		});
 
-		const userGuildBalance = user.userGuildBalances[0];
+		const userGuildBalance = user.userGuildDatas[0];
 
 		if (userGuildBalance.balance < amount) {
 			await message.reply('Você não tem moedas suficientes para fazer essa aposta.');
@@ -110,7 +110,7 @@ export class BlackjackCommand extends Command {
 							discordId: message.author.id
 						},
 						data: {
-							userGuildBalances: {
+							userGuildDatas: {
 								upsert: {
 									where: {
 										id: userGuildBalance.id
@@ -173,7 +173,7 @@ export class BlackjackCommand extends Command {
 					discordId: message.author.id
 				},
 				data: {
-					userGuildBalances: {
+					userGuildDatas: {
 						upsert: {
 							where: {
 								id: userGuildBalance.id
@@ -210,7 +210,7 @@ export class BlackjackCommand extends Command {
 					discordId: message.author.id
 				},
 				data: {
-					userGuildBalances: {
+					userGuildDatas: {
 						upsert: {
 							where: {
 								id: userGuildBalance.id
