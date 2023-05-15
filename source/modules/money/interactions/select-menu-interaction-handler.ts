@@ -139,6 +139,47 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			throw new Error('Unexpected: The item was not cached nor could be fetched.');
 		}
 
+		let selectedQuantity = 1;
+
+		if (
+			selectedItem.data &&
+			typeof selectedItem.data === 'object' &&
+			!('unique' in selectedItem.data)
+		) {
+			// Adicione um menu de seleção de quantidade após selecionar um item
+			const quantitySelectMenu = this.buildQuantitySelectMenu(
+				`QUANTITY:${interaction.id}`,
+				selectedItem.price,
+				selectedItem.priceInDiamonds
+			);
+
+			const quantitySelectMenuActionRow =
+				new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(quantitySelectMenu);
+
+			await interaction.editReply({
+				content: `Selecione a quantidade do item **${selectedItem.name}** que deseja comprar:`,
+				components: [quantitySelectMenuActionRow]
+			});
+
+			const quantitySelectionResult = await Result.fromAsync(
+				channel.awaitMessageComponent({
+					componentType: ComponentType.StringSelect,
+					filter: (componentInteraction) =>
+						componentInteraction.user.id === interaction.user.id &&
+						componentInteraction.customId === `QUANTITY:${interaction.id}`,
+					time: RESPONSE_TIMEOUT
+				})
+			);
+
+			if (quantitySelectionResult.isErr()) {
+				await interaction.deleteReply();
+				return;
+			}
+
+			const quantitySelection = quantitySelectionResult.unwrap();
+			selectedQuantity = parseInt(quantitySelection.values.shift()!, 10);
+		}
+
 		// Check if the user has enough money.
 		const { balance, diamonds } = await UserQueries.getUserBalances({
 			userId: interaction.user.id,
@@ -147,8 +188,8 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 		if (
 			selectedItem.priceInDiamonds
-				? diamonds < selectedItem.price
-				: balance < selectedItem.price
+				? diamonds < selectedItem.price * selectedQuantity
+				: balance < selectedItem.price * selectedQuantity
 		) {
 			await interaction.editReply({
 				content: `Você não tem dinheiro suficiente para comprar o item **${selectedItem.name}**.`,
@@ -181,11 +222,11 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		await UserQueries.updateBalance({
 			userId: interaction.user.id,
 			guildId: interaction.guildId,
-			balance: ['decrement', selectedItem.price]
+			balance: ['decrement', selectedItem.price * selectedQuantity]
 		});
 
 		await ShopQueries.buyItem({
-			amount: 1,
+			amount: selectedQuantity,
 			guildId: interaction.guildId,
 			userId: interaction.user.id,
 			itemId: selectedItem.id
@@ -195,5 +236,29 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			content: `Você comprou o item ${selectedItem.name}!`,
 			components: []
 		});
+	}
+
+	private buildQuantitySelectMenu(
+		customId: string,
+		singlePrice: number,
+		priceInDiamonds: boolean
+	) {
+		const AMOUNTS = [1, 3, 6, 9];
+
+		return new StringSelectMenuBuilder()
+			.setCustomId(customId)
+			.setPlaceholder('Selecione uma quantidade desejada')
+			.addOptions([
+				...AMOUNTS.map((amount) =>
+					new StringSelectMenuOptionBuilder()
+						.setValue(`${amount}`)
+						.setLabel(`Comprar x${amount}`)
+						.setDescription(
+							`→ Esta compra sairá por ${priceInDiamonds ? '💎' : '💰'} ${
+								amount * singlePrice
+							}`
+						)
+				)
+			]);
 	}
 }

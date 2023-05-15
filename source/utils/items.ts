@@ -32,7 +32,6 @@ export enum ItemSlug {
 
 const CommonSchema = z.object({
 	/** If the user has this item and a cop searches him, it'll warn the cop about it. */
-	// illegal: z.boolean().default(false)
 	illegal: z.union([z.boolean(), z.enum(['IF_NOT FirearmsLicense'])]).default(false)
 });
 
@@ -40,12 +39,7 @@ const CommonSchema = z.object({
 export const ZodParsers = {
 	UserPickaxe: CommonSchema.extend({
 		/** The amount of durability the pickaxe has (it's used to mine blocks). */
-		durability: z.number().positive().min(0)
-	}),
-
-	ItemPickaxe: CommonSchema.extend({
-		/** The default durability of an item pickaxe. */
-		defaultDurability: z.number().positive().min(0),
+		durability: z.number().positive().min(0),
 
 		/** Whether an item pickaxe is unique or not. */
 		unique: z.boolean().default(true)
@@ -73,11 +67,13 @@ export const ZodParsers = {
 
 export const DEFAULT_ITEM_DATA = {
 	[ItemSlug.IronPickaxe]: {
-		durability: 30
+		durability: 30,
+		unique: true
 	} as z.infer<typeof ZodParsers.UserPickaxe>,
 
 	[ItemSlug.DiamondPickaxe]: {
-		durability: 90
+		durability: 90,
+		unique: true
 	} as z.infer<typeof ZodParsers.UserPickaxe>,
 
 	// Seeds

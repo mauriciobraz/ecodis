@@ -30,6 +30,7 @@ export class InventoryCommand extends Command {
 			.setTitle(`Inventário de ${message.author.tag}`)
 			.setDescription(
 				userInventory.items
+					.filter(({ amount }) => amount > 0)
 					.map(({ amount, emoji, name }) => `• ${emoji} ${name} **x${amount}**`)
 					.join('\n')
 			);

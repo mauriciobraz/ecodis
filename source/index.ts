@@ -32,11 +32,15 @@ const client = new CustomSapphireClient({
 
 const bree = new Bree({
 	root: join(__dirname, 'jobs'),
-	logger: container.logger,
+	// logger: container.logger,
 	jobs: [
 		{
 			name: 'regenerations',
 			interval: 'every 120 seconds'
+		},
+		{
+			name: 'growthRate',
+			interval: 'every 5 seconds'
 		}
 	]
 });

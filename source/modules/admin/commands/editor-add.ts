@@ -32,7 +32,22 @@ export class AddEditorCommand extends Command {
 
 		const userDb = await this.container.database.user.upsert({
 			where: { discordId: user.id },
-			create: { discordId: user.id },
+			create: {
+				discordId: user.id,
+				userGuildDatas: {
+					create: {
+						guild: {
+							connectOrCreate: {
+								where: { discordId: message.guildId },
+								create: { discordId: message.guildId }
+							}
+						},
+						inventory: {
+							create: {}
+						}
+					}
+				}
+			},
 			update: {},
 			select: {
 				id: true

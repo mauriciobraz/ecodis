@@ -7,6 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Disease {
+  Flu
+  Tetanus
+}
+
+enum JobType {
+  Cop
+  Vet
+  Doctor
+}
+
+enum ItemType {
+  Weapon
+  Armor
+  Food
+  Farm
+  Tool
+  Ore
+}
+
 model Guild {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -20,8 +40,6 @@ model Guild {
 
   editors    User[]   @relation(references: [id], fields: [editorsIds], name: "GuildsEditors")
   editorsIds String[] @db.ObjectId
-
-  // transactions Transaction[]
 
   imprisonedUsers   UserPrison[]
   userGuildBalances UserGuildData[]
@@ -49,43 +67,6 @@ model User {
   diamonds Int @default(0)
 }
 
-enum Disease {
-  Flu
-  Tetanus
-}
-
-model UserGuildData {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user   User   @relation(fields: [userId], references: [id])
-  userId String @db.ObjectId
-
-  guild   Guild  @relation(fields: [guildId], references: [id])
-  guildId String @db.ObjectId
-
-  job   Job?    @relation(fields: [jobId], references: [id])
-  jobId String? @db.ObjectId
-
-  // transactions          Transaction[] @relation("UserGuildBalanceTransactions")
-  // senderTransactions    Transaction[] @relation("SenderGuildBalanceTransactions")
-  // recipientTransactions Transaction[] @relation("RecipientGuildBalanceTransactions")
-
-  lastDaily DateTime?
-
-  energy          Int       @default(1000)
-  energyUpdatedAt DateTime?
-
-  balance      Float @default(0)
-  bankBalance  Float @default(0)
-  dirtyBalance Float @default(0)
-
-  disease   Disease?
-  inventory Inventory?
-}
-
 model UserPrison {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -101,51 +82,6 @@ model UserPrison {
   releasedAt DateTime?
 }
 
-// enum TransactionType {
-//   Crime
-//   Deposit
-//   Withdraw
-//   TransferIn
-//   TransferOut
-// }
-
-// enum TransactionStatus {
-//   Success
-//   Pending
-//   Failed
-// }
-
-// model Transaction {
-//   id String @id @default(auto()) @map("_id") @db.ObjectId
-
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-
-//   type   TransactionType
-//   status TransactionStatus @default(Pending)
-
-//   amount      Float
-//   description String?
-
-//   userGuildBalance   UserGuildData? @relation("UserGuildBalanceTransactions", fields: [userGuildBalanceId], references: [id])
-//   userGuildBalanceId String?        @db.ObjectId
-
-//   senderGuildBalance   UserGuildData? @relation("SenderGuildBalanceTransactions", fields: [senderGuildBalanceId], references: [id])
-//   senderGuildBalanceId String?        @db.ObjectId
-
-//   recipientGuildBalance   UserGuildData? @relation("RecipientGuildBalanceTransactions", fields: [recipientGuildBalanceId], references: [id])
-//   recipientGuildBalanceId String?        @db.ObjectId
-
-//   guild   Guild  @relation(fields: [guildId], references: [id])
-//   guildId String @db.ObjectId
-// }
-
-enum JobType {
-  Cop
-  Vet
-  Doctor
-}
-
 model Job {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -157,15 +93,6 @@ model Job {
 
   cooldown DateTime?
   salary   Float
-}
-
-enum ItemType {
-  Weapon
-  Armor
-  Food
-  Farm
-  Tool
-  Ore
 }
 
 model Item {
@@ -186,9 +113,19 @@ model Item {
   price           Float
   priceInDiamonds Boolean @default(false)
 
-  // This allows to have a custom data for each item.
-  // For example, a weapon can have a damage property and a armor can have a defense property.
   data Json?
+}
+
+model Inventory {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   UserGuildData @relation(fields: [userId], references: [id])
+  userId String        @unique @db.ObjectId
+
+  items InventoryItem[]
 }
 
 model InventoryItem {
@@ -207,14 +144,61 @@ model InventoryItem {
   data   Json?
 }
 
-model Inventory {
+model UserGuildData {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   UserGuildData @relation(fields: [userId], references: [id])
-  userId String        @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @db.ObjectId
 
-  items InventoryItem[]
+  guild   Guild  @relation(fields: [guildId], references: [id])
+  guildId String @db.ObjectId
+
+  job   Job?    @relation(fields: [jobId], references: [id])
+  jobId String? @db.ObjectId
+
+  disease   Disease?
+  inventory Inventory?
+
+  farm       Farm?
+  greenhouse Greenhouse?
+
+  lastDaily DateTime?
+
+  energy          Int       @default(1000)
+  energyUpdatedAt DateTime?
+
+  balance      Float @default(0)
+  bankBalance  Float @default(0)
+  dirtyBalance Float @default(0)
+}
+
+model Farm {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userGuildData   UserGuildData @relation(fields: [userGuildDataId], references: [id])
+  userGuildDataId String        @unique @db.ObjectId
+
+  // number[][]
+  purchasedArea Json
+  plantData     Json
+}
+
+model Greenhouse {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userGuildData   UserGuildData @relation(fields: [userGuildDataId], references: [id])
+  userGuildDataId String        @unique @db.ObjectId
+
+  // number[][]
+  purchasedArea Json
+  plantData     Json
 }

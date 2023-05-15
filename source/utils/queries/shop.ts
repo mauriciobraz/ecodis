@@ -25,6 +25,7 @@ export namespace ShopQueries {
 		price: number;
 		amount: number;
 		emoji: string;
+		slug: string;
 	}
 
 	/**
@@ -44,7 +45,12 @@ export namespace ShopQueries {
 				discordId: userId,
 				userGuildDatas: {
 					create: {
-						guildId,
+						guild: {
+							connectOrCreate: {
+								where: { discordId: guildId },
+								create: { discordId: guildId }
+							}
+						},
 						inventory: {
 							create: {}
 						}
@@ -82,27 +88,20 @@ export namespace ShopQueries {
 			};
 		}
 
-		const inventoryItems = new Map<string, GetInventoryItemData>();
-
-		for (const item of userGuildData.inventory?.items || []) {
-			const slug = item.item.id;
-			if (inventoryItems.has(slug)) {
-				inventoryItems.get(slug)!.amount += item.amount;
-			} else {
-				inventoryItems.set(slug, {
-					id: item.item.id,
-					name: item.item.name,
-					description: item.item.description,
-					price: item.item.price,
-					amount: item.amount,
-					emoji: item.item.emoji
-				});
-			}
-		}
-
 		return {
 			userId,
-			items: Array.from(inventoryItems.values())
+			items: (userGuildData.inventory?.items || []).map(
+				(item) =>
+					({
+						id: item.item.id,
+						name: item.item.name,
+						description: item.item.description,
+						price: item.item.price,
+						amount: item.amount,
+						emoji: item.item.emoji,
+						slug: item.item.slug
+					} as GetInventoryItemData)
+			)
 		};
 	}
 
@@ -185,7 +184,12 @@ export namespace ShopQueries {
 						}
 					},
 					select: {
-						id: true
+						id: true,
+						inventory: {
+							select: {
+								id: true
+							}
+						}
 					}
 				}
 			}
@@ -195,66 +199,43 @@ export namespace ShopQueries {
 			return Result.err('User guild data not found.');
 		}
 
-		await container.database.userGuildData.upsert({
+		const inventoryItem = await container.database.inventoryItem.findFirst({
 			where: {
-				id: userGuildData.id
-			},
-			create: {
-				user: {
-					connect: {
-						discordId: userId
-					}
-				},
-				guild: {
-					connectOrCreate: {
-						create: { discordId: guildId },
-						where: { discordId: guildId }
-					}
-				},
-				inventory: {
-					create: {
-						items: {
-							create: {
-								itemId,
-								amount
-							}
-						}
-					}
-				}
-			},
-			update: {
-				inventory: {
-					upsert: {
-						create: {
-							items: {
-								create: {
-									itemId,
-									amount
-								}
-							}
-						},
-						update: {
-							items: {
-								upsert: {
-									where: {
-										id: itemId
-									},
-									create: {
-										itemId,
-										amount
-									},
-									update: {
-										amount: {
-											increment: amount
-										}
-									}
-								}
-							}
-						}
-					}
-				}
+				inventoryId: userGuildData.inventory?.id,
+				itemId
 			}
 		});
+
+		if (inventoryItem) {
+			// Update the existing item's amount
+			await container.database.inventoryItem.update({
+				where: {
+					id: inventoryItem.id
+				},
+				data: {
+					amount: {
+						increment: amount
+					}
+				}
+			});
+		} else {
+			// Connect the purchased item to the userGuildData's inventory
+			await container.database.inventoryItem.create({
+				data: {
+					amount,
+					item: {
+						connect: {
+							id: itemId
+						}
+					},
+					inventory: {
+						connect: {
+							id: userGuildData.inventory?.id
+						}
+					}
+				}
+			});
+		}
 
 		return Result.ok({ message: 'Item successfully purchased.' });
 	}
