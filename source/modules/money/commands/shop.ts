@@ -15,14 +15,16 @@ export const ItemTypeEmoji = {
 	[ItemType.Food]: '🍎',
 	[ItemType.Ore]: '💎',
 	[ItemType.Tool]: '🛠',
-	[ItemType.Weapon]: '🔫'
+	[ItemType.Weapon]: '🔫',
+	[ItemType.Greenhouse]: '🏡'
 };
 
 export const ItemTypeNames = {
-	[ItemType.Armor]: 'Armadura',
+	[ItemType.Greenhouse]: 'Estufa',
 	[ItemType.Farm]: 'Fazenda',
 	[ItemType.Food]: 'Comida',
 	[ItemType.Ore]: 'Minério',
+	[ItemType.Armor]: 'Armadura',
 	[ItemType.Tool]: 'Ferramenta',
 	[ItemType.Weapon]: 'Armamento'
 };

@@ -24,6 +24,10 @@ export enum ItemSlug {
 	Pumpkin = 'Pumpkin',
 	Cannabis = 'Cannabis',
 
+	Strawberry = 'Strawberry',
+	RedBerries = 'RedBerries',
+	Fertilizer = 'Fertilizer',
+
 	FirearmsLicense = 'FirearmsLicense',
 	HK416 = 'HK416',
 	AK47 = 'AK47',
@@ -111,6 +115,22 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 	[ItemSlug.Cannabis]: {
 		illegal: true,
 		growthTime: 7,
+		yield: 3,
+		diseases: []
+	} as z.infer<typeof ZodParsers.Seed>,
+
+	// TODO: CHANGE GROWTH TIME
+
+	[ItemSlug.Strawberry]: {
+		illegal: true,
+		growthTime: 3.5,
+		yield: 3,
+		diseases: []
+	} as z.infer<typeof ZodParsers.Seed>,
+
+	[ItemSlug.RedBerries]: {
+		illegal: true,
+		growthTime: 3.5,
 		yield: 3,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
@@ -439,6 +459,63 @@ export async function createItemsIfNotExists() {
 			description: 'A seed for planting cannabis.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Cannabis]
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Strawberry
+		},
+		create: {
+			slug: ItemSlug.Strawberry,
+			type: ItemType.Greenhouse,
+
+			emoji: '🍓',
+			price: 100,
+
+			name: 'Strawberry',
+			description: 'A seed for planting strawberry.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Strawberry]
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.RedBerries
+		},
+		create: {
+			slug: ItemSlug.RedBerries,
+			type: ItemType.Greenhouse,
+
+			emoji: '🍒',
+			price: 100,
+
+			name: 'Red Berries',
+			description: 'A seed for planting red berries.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Strawberry]
+		},
+		update: {}
+	});
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Fertilizer
+		},
+		create: {
+			slug: ItemSlug.Fertilizer,
+			type: ItemType.Greenhouse,
+
+			emoji: '🌱',
+			price: 150,
+
+			name: 'Fertilizer',
+			description: 'A fertilizer that allows planting in greenhouse.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Strawberry]
 		},
 		update: {}
 	});

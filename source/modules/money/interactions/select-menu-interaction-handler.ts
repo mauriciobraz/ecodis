@@ -24,7 +24,8 @@ const ItemTypeDescription = {
 	[ItemType.Food]: '↓ Lista de comidas',
 	[ItemType.Ore]: '↓ Lista de minerais',
 	[ItemType.Tool]: '↓ Lista de ferramentas',
-	[ItemType.Weapon]: '↓ Compre uma licença antes de uma arma'
+	[ItemType.Weapon]: '↓ Compre uma licença antes de uma arma',
+	[ItemType.Greenhouse]: '↓ Compre itens para sua estufa'
 };
 
 /** The amount of time in milliseconds to wait for a response from the user. */
@@ -143,11 +144,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 		let selectedQuantity = 1;
 
-		if (
-			selectedItem.data &&
-			typeof selectedItem.data === 'object' &&
-			!('unique' in selectedItem.data)
-		) {
+		if (!(selectedItem.data as Record<any, any>)?.unique) {
 			// Adicione um menu de seleção de quantidade após selecionar um item
 			const quantitySelectMenu = this.buildQuantitySelectMenu(
 				`QUANTITY:${interaction.id}`,
