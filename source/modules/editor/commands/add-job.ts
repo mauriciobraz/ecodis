@@ -13,7 +13,9 @@ import {
 import { UserQueries } from '../../../utils/queries/user';
 
 @ApplyOptions<Command.Options>({
-	name: 'add-job',
+	name: 'adicionar-trabalho',
+	aliases: ['add-job', 'add-trabalho', 'adicionar-job'],
+	description: 'Adiciona uma profissão a um usuário.',
 	preconditions: ['GuildOnly'],
 	requiredUserPermissions: ['Administrator']
 })
