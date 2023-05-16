@@ -10,19 +10,20 @@ import type { Message } from 'discord.js';
 })
 export class HelpCommand extends Command {
 	public override async messageRun(message: Message) {
-		const embed = new EmbedBuilder()
-			.setColor(Colors.Blurple)
-			.setTitle('Comandos disponíveis (ALPHA)');
-
 		const commands = this.container.stores.get('commands').filter((cmd) => cmd.enabled);
 		const sortedCommands = commands.sort((a, b) => a.name.localeCompare(b.name));
 
-		for (const [, command] of sortedCommands) {
-			embed.addFields({
-				name: `**${command.name}**`,
-				value: command.description || 'Sem descrição disponível.'
-			});
-		}
+		const embed = new EmbedBuilder()
+			.setColor(Colors.Blurple)
+			.setTitle('Comandos disponíveis (ALPHA)')
+			.setDescription(
+				sortedCommands
+					.map(
+						(cmd) =>
+							`**${cmd.name}** - ${cmd.description || 'Sem descrição disponível.'}`
+					)
+					.join('\n')
+			);
 
 		await message.reply({
 			embeds: [embed]

@@ -25,8 +25,27 @@ const FLIP_COIN_CHOICES: Record<FlipCoinChoice, RegExp> = {
 })
 export class FlipCoinCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
-		const choice = await args.pick('string');
-		const amount = await args.pick('number');
+		const choiceResult = await args.pickResult('string');
+		const amountResult = await args.pickResult('number');
+
+		if (choiceResult.isErr()) {
+			await message.reply({
+				content: 'Você precisa escolher entre **cara** ou **coroa**.'
+			});
+
+			return;
+		}
+
+		if (amountResult.isErr()) {
+			await message.reply({
+				content: 'Você precisa escolher um valor para apostar (por exemplo, 100).'
+			});
+
+			return;
+		}
+
+		const choice = choiceResult.unwrap();
+		const amount = amountResult.unwrap();
 
 		if (amount < MINIMUM_BET_PRIZE) {
 			await message.reply({
@@ -34,6 +53,17 @@ export class FlipCoinCommand extends Command {
 			});
 
 			return;
+		}
+
+		const balances = await UserQueries.getUserBalances({
+			userId: message.author.id,
+			guildId: message.guildId
+		});
+
+		if (balances.balance < amount) {
+			return message.channel.send({
+				content: `Você não tem dinheiro suficiente para apostar ${amount} moedas.`
+			});
 		}
 
 		if (!this.isFlipCoinChoice(choice)) {

@@ -21,7 +21,7 @@ export class LaundryCommand extends Command {
 
 		if (amountToLaundryResult.isErr()) {
 			await message.channel.send({
-				content: 'Você precisa especificar uma quantidade de dinheiro para lavar.'
+				content: 'Você precisa escolher um valor para lavar (por exemplo, 100).'
 			});
 
 			return;

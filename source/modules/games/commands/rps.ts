@@ -27,8 +27,27 @@ const RPS_CHOICES: Record<RPSChoice, RegExp> = {
 })
 export class RockPaperScissorsCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
-		const choice = await args.pick('string');
-		const amount = await args.pick('number');
+		const choiceResult = await args.pickResult('string');
+		const amountResult = await args.pickResult('number');
+
+		if (choiceResult.isErr()) {
+			await message.reply({
+				content: 'Você precisa escolher entre **pedra**, **papel** ou **tesoura**.'
+			});
+
+			return;
+		}
+
+		if (amountResult.isErr()) {
+			await message.reply({
+				content: 'Você precisa escolher um valor para apostar (por exemplo, 100).'
+			});
+
+			return;
+		}
+
+		const choice = choiceResult.unwrap();
+		const amount = amountResult.unwrap();
 
 		if (amount < MINIMUM_BET_AMOUNT) {
 			await message.reply({
@@ -45,6 +64,17 @@ export class RockPaperScissorsCommand extends Command {
 			});
 
 			return;
+		}
+
+		const balances = await UserQueries.getUserBalances({
+			userId: message.author.id,
+			guildId: message.guildId
+		});
+
+		if (balances.balance < amount) {
+			return message.channel.send({
+				content: `Você não tem dinheiro suficiente para apostar ${amount} moedas.`
+			});
 		}
 
 		const { isTie, prize } = this.handleGame(choice);

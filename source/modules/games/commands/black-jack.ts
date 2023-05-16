@@ -20,7 +20,17 @@ enum Suit {
 })
 export class BlackjackCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
-		const amount = await args.pick('number');
+		const amountResult = await args.pickResult('number');
+
+		if (amountResult.isErr()) {
+			await message.reply({
+				content: 'Você precisa escolher um valor para apostar (por exemplo, 100).'
+			});
+
+			return;
+		}
+
+		const amount = amountResult.unwrap();
 
 		const user = await this.container.database.user.upsert({
 			where: {
