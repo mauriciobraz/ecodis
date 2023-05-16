@@ -3,11 +3,12 @@ import { resolve } from 'path';
 import { PrismaClient } from '@prisma/client';
 import { SapphireClient, container } from '@sapphire/framework';
 import { createPrismaRedisCache } from 'prisma-redis-middleware';
+import type { ClientOptions } from 'discord.js';
 
 import { readdirRecursiveSync } from './utils/fs-utils';
 
-import type { ClientOptions } from 'discord.js';
 import { createItemsIfNotExists } from './utils/items';
+import { createJobsIfNotExists } from './utils/jobs';
 
 export class CustomSapphireClient extends SapphireClient {
 	public constructor(options: ClientOptions) {
@@ -46,6 +47,7 @@ export class CustomSapphireClient extends SapphireClient {
 		);
 
 		await createItemsIfNotExists();
+		await createJobsIfNotExists();
 
 		return super.login(token);
 	}

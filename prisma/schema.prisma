@@ -90,7 +90,7 @@ model Job {
   updatedAt DateTime @updatedAt
 
   users UserGuildData[]
-  type  JobType
+  type  JobType         @unique
 
   cooldown DateTime?
   salary   Float
