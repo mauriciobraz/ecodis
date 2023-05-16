@@ -14,6 +14,7 @@ import {
 
 import type { ChatInputCommandInteraction } from 'discord.js';
 import { ZodParsers, getItemId } from '../../../utils/items';
+import type { ItemSlug } from '../../../utils/items';
 
 type CachedInGuild = 'cached' | 'raw';
 
@@ -213,7 +214,7 @@ export class MineCommand extends Command {
 		// FIXME: There is something wrong with this function.
 		await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
 
-		// TODO: await MineCommand.handleItemFound();
+		await MineCommand.handleItemFound(item as ItemSlug, userId, interactionOrMessage.guildId!);
 
 		if (item === MineItem.Stone) {
 			const lostContent = 'Você perdeu! Mais sorte na próxima vez!';
@@ -277,6 +278,8 @@ export class MineCommand extends Command {
 
 		if (!userHasPickaxe) return null;
 
+		console.log(userHasPickaxe.data);
+
 		const pickaxe = ZodParsers.UserPickaxe.safeParse(userHasPickaxe.data);
 
 		if (!pickaxe.success) {
@@ -328,8 +331,82 @@ export class MineCommand extends Command {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/require-await
-	public static async handleItemFound() {
-		throw new Error('Not implemented.');
+	public static async handleItemFound(item: ItemSlug, userId: string, guildId: string) {
+		const itemId = await getItemId(item as any);
+
+		const guild = await container.database.guild.upsert({
+			where: { discordId: guildId },
+			create: { discordId: guildId },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const {
+			userGuildDatas: [userGuildData]
+		} = await container.database.user.upsert({
+			where: {
+				discordId: userId
+			},
+			create: {
+				discordId: userId,
+				userGuildDatas: {
+					create: {
+						guildId: guild.id
+					}
+				}
+			},
+			update: {},
+			select: {
+				id: true,
+				userGuildDatas: {
+					where: {
+						guildId: guild.id
+					}
+				}
+			}
+		});
+
+		let inventory = await container.database.inventory.findUnique({
+			where: { userId: userGuildData.id }
+		});
+
+		if (!inventory) {
+			inventory = await container.database.inventory.create({
+				data: {
+					userId: userGuildData.id
+				}
+			});
+		}
+
+		const existingItem = await container.database.inventoryItem.findFirst({
+			where: {
+				itemId,
+				inventoryId: inventory.id
+			}
+		});
+
+		if (existingItem) {
+			await container.database.inventoryItem.update({
+				where: {
+					id: existingItem.id
+				},
+				data: {
+					amount: {
+						increment: 1
+					}
+				}
+			});
+		} else {
+			await container.database.inventoryItem.create({
+				data: {
+					amount: 1,
+					itemId,
+					inventoryId: inventory.id
+				}
+			});
+		}
 	}
 
 	/**

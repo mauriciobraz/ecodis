@@ -10,7 +10,8 @@ import {
 	type StringSelectMenuInteraction
 } from 'discord.js';
 
-import { userHasMoreThanOneUniqueItem } from '../../../utils/items';
+import type { ItemSlug } from '../../../utils/items';
+import { DEFAULT_ITEM_DATA, userHasMoreThanOneUniqueItem } from '../../../utils/items';
 import { UserQueries } from '../../../utils/queries/user';
 import { ItemTypeEmoji, ItemTypeNames } from '../commands/shop';
 
@@ -230,7 +231,8 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			amount: selectedQuantity,
 			guildId: interaction.guildId,
 			userId: interaction.user.id,
-			itemId: selectedItem.id
+			itemId: selectedItem.id,
+			data: DEFAULT_ITEM_DATA[selectedItem.slug as ItemSlug]
 		});
 
 		await interaction.editReply({

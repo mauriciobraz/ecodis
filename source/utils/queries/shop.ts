@@ -99,6 +99,7 @@ export namespace ShopQueries {
 	}
 
 	export interface BuyItemOptions {
+		data?: any;
 		userId: string;
 		guildId: string;
 		itemId: string;
@@ -114,7 +115,7 @@ export namespace ShopQueries {
 	 * @returns A message indicating whether the purchase was successful or not.
 	 */
 	export async function buyItem(options: BuyItemOptions) {
-		const { amount, guildId, itemId, userId } = options;
+		const { amount, guildId, itemId, userId, data } = options;
 
 		// Fetch item information
 		const item = await container.database.item.findUnique({
@@ -207,6 +208,7 @@ export namespace ShopQueries {
 					id: existingItem.id
 				},
 				data: {
+					data,
 					amount: {
 						increment: amount
 					}
@@ -215,6 +217,7 @@ export namespace ShopQueries {
 		} else {
 			await container.database.inventoryItem.create({
 				data: {
+					data,
 					amount,
 					itemId,
 					inventoryId: inventory.id

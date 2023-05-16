@@ -65,7 +65,7 @@ export const ZodParsers = {
 	})
 };
 
-export const DEFAULT_ITEM_DATA = {
+export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 	[ItemSlug.IronPickaxe]: {
 		durability: 30,
 		unique: true
@@ -184,10 +184,10 @@ export async function createItemsIfNotExists() {
 
 	await container.database.item.upsert({
 		where: {
-			slug: ItemSlug.Sapphire
+			slug: ItemSlug.Diamond
 		},
 		create: {
-			slug: ItemSlug.Sapphire,
+			slug: ItemSlug.Diamond,
 			type: ItemType.Ore,
 
 			emoji: '💎',
