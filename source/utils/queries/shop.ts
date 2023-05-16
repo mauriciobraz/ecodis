@@ -35,49 +35,15 @@ export namespace ShopQueries {
 	 * @returns The user's inventory in the specified guild.
 	 */
 	export async function getInventory(userId: string, guildId: string) {
-		const {
-			userGuildDatas: [userGuildData]
-		} = await container.database.user.upsert({
+		const user = await UserQueries.getOrCreate(userId);
+
+		const userGuildData = await container.database.userGuildData.findFirst({
 			where: {
-				discordId: userId
+				userId: user.id,
+				guild: { discordId: guildId }
 			},
-			create: {
-				discordId: userId,
-				userGuildDatas: {
-					create: {
-						guild: {
-							connectOrCreate: {
-								where: { discordId: guildId },
-								create: { discordId: guildId }
-							}
-						},
-						inventory: {
-							create: {}
-						}
-					}
-				}
-			},
-			update: {},
-			select: {
-				userGuildDatas: {
-					where: {
-						guild: {
-							discordId: guildId
-						}
-					},
-					select: {
-						inventory: {
-							select: {
-								items: {
-									select: {
-										amount: true,
-										item: true
-									}
-								}
-							}
-						}
-					}
-				}
+			include: {
+				inventory: true
 			}
 		});
 
@@ -88,20 +54,47 @@ export namespace ShopQueries {
 			};
 		}
 
+		const { inventory } = userGuildData;
+
+		if (!inventory) {
+			return {
+				userId,
+				items: []
+			};
+		}
+
+		const inventoryItems = await container.database.inventoryItem.findMany({
+			where: {
+				inventoryId: inventory.id
+			},
+			select: {
+				amount: true,
+				item: {
+					select: {
+						id: true,
+						name: true,
+						description: true,
+						price: true,
+						emoji: true,
+						slug: true
+					}
+				}
+			}
+		});
+
+		const items = inventoryItems.map((inventoryItem) => ({
+			id: inventoryItem.item.id,
+			name: inventoryItem.item.name,
+			description: inventoryItem.item.description,
+			price: inventoryItem.item.price,
+			amount: inventoryItem.amount,
+			emoji: inventoryItem.item.emoji,
+			slug: inventoryItem.item.slug
+		}));
+
 		return {
 			userId,
-			items: (userGuildData.inventory?.items || []).map(
-				(item) =>
-					({
-						id: item.item.id,
-						name: item.item.name,
-						description: item.item.description,
-						price: item.item.price,
-						amount: item.amount,
-						emoji: item.item.emoji,
-						slug: item.item.slug
-					} as GetInventoryItemData)
-			)
+			items
 		};
 	}
 
@@ -120,7 +113,9 @@ export namespace ShopQueries {
 	 * @param amount The number of items to be purchased.
 	 * @returns A message indicating whether the purchase was successful or not.
 	 */
-	export async function buyItem({ amount, guildId, itemId, userId }: BuyItemOptions) {
+	export async function buyItem(options: BuyItemOptions) {
+		const { amount, guildId, itemId, userId } = options;
+
 		// Fetch item information
 		const item = await container.database.item.findUnique({
 			where: {
@@ -153,6 +148,15 @@ export namespace ShopQueries {
 			balance: ['decrement', totalPrice]
 		});
 
+		const guild = await container.database.guild.upsert({
+			where: { discordId: guildId },
+			create: { discordId: guildId },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
 		const {
 			userGuildDatas: [userGuildData]
 		} = await container.database.user.upsert({
@@ -163,54 +167,44 @@ export namespace ShopQueries {
 				discordId: userId,
 				userGuildDatas: {
 					create: {
-						guild: {
-							connectOrCreate: {
-								create: { discordId: guildId },
-								where: { discordId: guildId }
-							}
-						},
-						inventory: {
-							create: {}
-						}
+						guildId: guild.id
 					}
 				}
 			},
 			update: {},
 			select: {
+				id: true,
 				userGuildDatas: {
 					where: {
-						guild: {
-							discordId: guildId
-						}
-					},
-					select: {
-						id: true,
-						inventory: {
-							select: {
-								id: true
-							}
-						}
+						guildId: guild.id
 					}
 				}
 			}
 		});
 
-		if (!userGuildData) {
-			return Result.err('User guild data not found.');
+		let inventory = await container.database.inventory.findUnique({
+			where: { userId: userGuildData.id }
+		});
+
+		if (!inventory) {
+			inventory = await container.database.inventory.create({
+				data: {
+					userId: userGuildData.id
+				}
+			});
 		}
 
-		const inventoryItem = await container.database.inventoryItem.findFirst({
+		const existingItem = await container.database.inventoryItem.findFirst({
 			where: {
-				inventoryId: userGuildData.inventory?.id,
-				itemId
+				itemId,
+				inventoryId: inventory.id
 			}
 		});
 
-		if (inventoryItem) {
-			// Update the existing item's amount
+		if (existingItem) {
 			await container.database.inventoryItem.update({
 				where: {
-					id: inventoryItem.id
+					id: existingItem.id
 				},
 				data: {
 					amount: {
@@ -219,24 +213,17 @@ export namespace ShopQueries {
 				}
 			});
 		} else {
-			// Connect the purchased item to the userGuildData's inventory
 			await container.database.inventoryItem.create({
 				data: {
 					amount,
-					item: {
-						connect: {
-							id: itemId
-						}
-					},
-					inventory: {
-						connect: {
-							id: userGuildData.inventory?.id
-						}
-					}
+					itemId,
+					inventoryId: inventory.id
 				}
 			});
 		}
 
-		return Result.ok({ message: 'Item successfully purchased.' });
+		return Result.ok({
+			message: 'Item successfully purchased.'
+		});
 	}
 }

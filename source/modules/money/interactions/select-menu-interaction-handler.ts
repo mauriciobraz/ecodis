@@ -128,6 +128,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		}
 
 		const selection = selectionResult.unwrap();
+		await selection.deferUpdate();
 
 		const selectedItem = await this.container.database.item.findFirst({
 			where: {

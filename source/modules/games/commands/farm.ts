@@ -147,68 +147,53 @@ export default class FarmCommand extends Command {
 	 * @returns The farm object or an error if it could not be created or found.
 	 */
 	private async getOrCreateFarm({ guildId, userId }: GetOrCreateFarmOptions) {
-		const farm = await this.container.database.farm.findFirst({
+		// First, we try to find the user and his/her guild data
+		let userGuildData = await this.container.database.userGuildData.findFirst({
 			where: {
-				userGuildData: {
-					user: {
-						discordId: userId
-					}
-				}
+				user: { discordId: userId },
+				guild: { discordId: guildId }
 			}
 		});
 
-		if (farm) {
-			return this.parseFarmJsonFields(farm);
+		// If the userGuildData does not exist, create it
+		if (!userGuildData) {
+			userGuildData = await this.container.database.userGuildData.create({
+				data: {
+					user: {
+						connectOrCreate: {
+							where: { discordId: userId },
+							create: { discordId: userId }
+						}
+					},
+					guild: {
+						connectOrCreate: {
+							where: { discordId: guildId },
+							create: { discordId: guildId }
+						}
+					}
+				}
+			});
 		}
 
-		const {
-			userGuildDatas: [newUserGuildData]
-		} = await this.container.database.user.upsert({
+		// Try to find the farm for the user
+		let farm = await this.container.database.farm.findFirst({
 			where: {
-				discordId: userId
-			},
-			create: {
-				discordId: userId,
-				userGuildDatas: {
-					create: {
-						guild: {
-							connectOrCreate: {
-								where: {
-									discordId: guildId
-								},
-								create: {
-									discordId: guildId
-								}
-							}
-						}
-					}
-				}
-			},
-			update: {},
-			select: {
-				userGuildDatas: {
-					where: {
-						guild: {
-							discordId: guildId
-						}
-					}
-				}
+				userGuildDataId: userGuildData.id
 			}
 		});
 
-		const newFarm = await this.container.database.farm.create({
-			data: {
-				userGuildData: {
-					connect: {
-						id: newUserGuildData.id
-					}
-				},
-				plantData: DEFAULT_PLANT_DATA_GRID,
-				purchasedArea: DEFAULT_PURCHASED_AREA
-			}
-		});
+		// If the farm does not exist, create a new one
+		if (!farm) {
+			farm = await this.container.database.farm.create({
+				data: {
+					userGuildDataId: userGuildData.id,
+					purchasedArea: DEFAULT_PURCHASED_AREA,
+					plantData: DEFAULT_PLANT_DATA_GRID
+				}
+			});
+		}
 
-		return this.parseFarmJsonFields(newFarm);
+		return this.parseFarmJsonFields(farm);
 	}
 
 	/**
@@ -372,9 +357,17 @@ export default class FarmCommand extends Command {
 			SEEDS_SLUGS.some((seed) => seed === item.slug)
 		);
 
-		console.log({
-			userSeeds
-		});
+		if (!userSeeds.length) {
+			const content = 'Você não tem nenhuma semente no inventário.';
+
+			if (interaction.replied) {
+				await interaction.editReply({ content });
+			} else {
+				await interaction.reply({ content, ephemeral: true });
+			}
+
+			return;
+		}
 
 		const userSeedsSelectMenu = new StringSelectMenuBuilder()
 			.setCustomId(CUSTOM_IDS.FARM_SEED_SELECT_MENU)
@@ -435,7 +428,13 @@ export default class FarmCommand extends Command {
 	}
 
 	private async plantAll(interaction: StringSelectMenuInteraction, farm: ParsedFarm) {
-		const { id: seedId } = await this.askForSeedId(interaction);
+		const seed = await this.askForSeedId(interaction);
+
+		if (!seed) {
+			return;
+		}
+
+		const seedId = seed.id;
 
 		const seedInventoryItem = await this.container.database.inventoryItem.findFirst({
 			where: {
@@ -474,11 +473,6 @@ export default class FarmCommand extends Command {
 				}
 			}
 		}
-
-		console.log({
-			seedInventoryItemAmount: seedInventoryItem.amount,
-			emptyCells
-		});
 
 		if (seedInventoryItem.amount < emptyCells) {
 			await interaction.editReply({
@@ -664,7 +658,13 @@ export default class FarmCommand extends Command {
 			return;
 		}
 
-		const { id: seedId } = await this.askForSeedId(interaction);
+		const seed = await this.askForSeedId(interaction);
+
+		if (!seed) {
+			return;
+		}
+
+		const seedId = seed.id;
 
 		const seedInventoryItem = await this.container.database.inventoryItem.findFirst({
 			where: {

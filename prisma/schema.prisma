@@ -142,6 +142,8 @@ model InventoryItem {
 
   amount Int   @default(1)
   data   Json?
+
+  @@unique([itemId, inventoryId])
 }
 
 model UserGuildData {
@@ -173,6 +175,8 @@ model UserGuildData {
   balance      Float @default(0)
   bankBalance  Float @default(0)
   dirtyBalance Float @default(0)
+
+  @@unique([userId, guildId])
 }
 
 model Farm {

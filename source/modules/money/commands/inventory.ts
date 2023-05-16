@@ -19,7 +19,7 @@ export class InventoryCommand extends Command {
 
 		const userInventory = await ShopQueries.getInventory(userId, guildId);
 
-		if (!userInventory || userInventory.items.length === 0) {
+		if (!userInventory || userInventory.items?.length === 0) {
 			await message.reply({
 				content: 'Seu inventário está vazio! Compre algum item com o comando `!loja`!'
 			});
@@ -30,7 +30,7 @@ export class InventoryCommand extends Command {
 			.setTitle(`Inventário de ${message.author.tag}`)
 			.setDescription(
 				userInventory.items
-					.filter(({ amount }) => amount > 0)
+					?.filter(({ amount }) => amount > 0)
 					.map(({ amount, emoji, name }) => `• ${emoji} ${name} **x${amount}**`)
 					.join('\n')
 			);

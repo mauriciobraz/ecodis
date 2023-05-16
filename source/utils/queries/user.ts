@@ -7,6 +7,23 @@ import type { Prisma } from '@prisma/client';
  * Utility functions for interacting with the database.
  */
 export namespace UserQueries {
+	export async function getOrCreate(userId: string) {
+		const user = await container.database.user.upsert({
+			where: {
+				discordId: userId
+			},
+			create: {
+				discordId: userId
+			},
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		return user;
+	}
+
 	/**
 	 * Represents the options for updating the balance of a user in a guild.
 	 */
@@ -52,6 +69,15 @@ export namespace UserQueries {
 							discordId: options.guildId
 						}
 					}
+				},
+				userGuildDatas: {
+					create: {
+						guild: {
+							connect: {
+								discordId: options.guildId
+							}
+						}
+					}
 				}
 			},
 			update: {},
@@ -68,6 +94,31 @@ export namespace UserQueries {
 				}
 			}
 		});
+
+		let userGuildDataId: string;
+
+		if (userGuildBalance && userGuildBalance.id) {
+			userGuildDataId = userGuildBalance.id;
+		} else {
+			const newUserGuildData = await container.database.userGuildData.create({
+				data: {
+					guild: {
+						connectOrCreate: {
+							where: { discordId: options.guildId },
+							create: { discordId: options.guildId }
+						}
+					},
+					user: {
+						connectOrCreate: {
+							where: { discordId: options.userId },
+							create: { discordId: options.userId }
+						}
+					}
+				}
+			});
+
+			userGuildDataId = newUserGuildData.id;
+		}
 
 		const updateData: Prisma.UserGuildDataUpdateInput = {};
 
@@ -91,7 +142,7 @@ export namespace UserQueries {
 
 		const updatedUserGuildBalance = await container.database.userGuildData.update({
 			where: {
-				id: userGuildBalance.id
+				id: userGuildDataId
 			},
 			data: updateData,
 			select: {
