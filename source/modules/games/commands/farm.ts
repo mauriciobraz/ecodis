@@ -76,68 +76,87 @@ type ParseFarmJsonFieldsResult = Result<ParsedFarm, z.ZodError>;
 })
 export default class FarmCommand extends Command {
 	public override async messageRun(message: Message<true>) {
-		// Verificar ou criar fazenda para o usuário
-		const farmResult = await this.getOrCreateFarm({
-			guildId: message.guildId,
-			userId: message.author.id
-		});
+		let msg: Message<true> | null = null;
+		let continueLoop = true;
 
-		if (farmResult.isErr()) {
-			this.container.logger.error(farmResult.unwrapErr());
-
-			await message.reply({
-				content:
-					'Houve um erro inesperado ao criar/buscar sua fazenda. Por favor contate um administrador e informe o ocorrido.'
+		while (continueLoop) {
+			// Verificar ou criar fazenda para o usuário
+			const farmResult = await this.getOrCreateFarm({
+				guildId: message.guildId,
+				userId: message.author.id
 			});
 
-			return;
-		}
+			if (farmResult.isErr()) {
+				this.container.logger.error(farmResult.unwrapErr());
 
-		const farm = farmResult.unwrap();
+				await message.reply({
+					content:
+						'Houve um erro inesperado ao criar/buscar sua fazenda. Por favor contate um administrador e informe o ocorrido.'
+				});
 
-		const farmImage = this.generateFarmImage(farm.plantData);
-		const controlsSelectMenu = this.createControlsSelectMenu(farm.plantData);
+				continueLoop = false;
 
-		await message.reply({
-			components: [controlsSelectMenu],
-			files: [farmImage]
-		});
+				break;
+			}
 
-		const collectedInteractionResponse = await Result.fromAsync(
-			message.channel.awaitMessageComponent({
-				componentType: ComponentType.StringSelect,
-				filter: (i) =>
-					i.member.id === message.author.id &&
-					i.customId === CUSTOM_IDS.FARM_CONTROL_SELECT_MENU,
-				time: 60_000
-			})
-		);
+			const farm = farmResult.unwrap();
 
-		if (collectedInteractionResponse.isErr()) {
-			await message.delete();
-			return;
-		}
+			const farmImage = this.generateFarmImage(farm.plantData);
+			const controlsSelectMenu = this.createControlsSelectMenu(farm.plantData);
 
-		const collectedInteraction = collectedInteractionResponse.unwrap();
+			if (!msg) {
+				msg = await message.reply({
+					components: [controlsSelectMenu],
+					files: [farmImage]
+				});
+			}
 
-		const farmControlSelectMenuValue = collectedInteraction
-			.values[0] as FarmControlSelectMenuValue;
+			const collectedInteractionResponse = await Result.fromAsync(
+				message.channel.awaitMessageComponent({
+					componentType: ComponentType.StringSelect,
+					filter: (i) =>
+						i.member.id === message.author.id &&
+						i.customId === CUSTOM_IDS.FARM_CONTROL_SELECT_MENU,
+					time: 60_000
+				})
+			);
 
-		if (farmControlSelectMenuValue === 'plant_all') {
-			await this.plantAll(collectedInteraction, farm);
-		} else if (farmControlSelectMenuValue === 'harvest_all') {
-			await this.harvestAll(collectedInteraction, farm);
-		} else {
-			const [method, rawPlantRow, rawPlantCol] = farmControlSelectMenuValue.split('_') as [
-				'plant' | 'harvest',
-				string,
-				string
-			];
+			if (collectedInteractionResponse.isErr()) {
+				await message.delete();
+				continueLoop = false;
 
-			const plantRow = Number(rawPlantRow);
-			const plantCol = Number(rawPlantCol);
+				break;
+			}
 
-			await this[method](collectedInteraction, farm, plantRow, plantCol);
+			const collectedInteraction = collectedInteractionResponse.unwrap();
+
+			const farmControlSelectMenuValue = collectedInteraction
+				.values[0] as FarmControlSelectMenuValue;
+
+			let newPlantData: PlantDataGrid | undefined;
+
+			if (farmControlSelectMenuValue === 'plant_all') {
+				newPlantData = await this.plantAll(collectedInteraction, farm);
+			} else if (farmControlSelectMenuValue === 'harvest_all') {
+				newPlantData = await this.harvestAll(collectedInteraction, farm);
+			} else {
+				const [method, rawPlantRow, rawPlantCol] = farmControlSelectMenuValue.split(
+					'_'
+				) as ['plant' | 'harvest', string, string];
+
+				const plantRow = Number(rawPlantRow);
+				const plantCol = Number(rawPlantCol);
+
+				newPlantData = await this[method](collectedInteraction, farm, plantRow, plantCol);
+			}
+
+			// Update the farm with the new image.
+			await msg.edit({
+				components: [controlsSelectMenu],
+				...(newPlantData && {
+					files: [this.generateFarmImage(newPlantData)]
+				})
+			});
 		}
 	}
 
@@ -514,10 +533,9 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		await interaction.editReply({
-			content: `Você plantou com sucesso sementes de ${seedInventoryItem.item.name} em todas as células vazias.`,
-			components: []
-		});
+		await interaction.deleteReply();
+
+		return updatedPlantData;
 	}
 
 	private async harvestAll(interaction: StringSelectMenuInteraction, farm: ParsedFarm) {
@@ -634,12 +652,9 @@ export default class FarmCommand extends Command {
 			}
 		}
 
-		await interaction.editReply({
-			content: `Você colheu com sucesso ${
-				Object.keys(harvestedItems).length
-			} itens. Use o comando \`!inventario\` para vê-los!`,
-			components: []
-		});
+		await interaction.deleteReply();
+
+		return farm.plantData;
 	}
 
 	private async plant(
@@ -686,10 +701,17 @@ export default class FarmCommand extends Command {
 		});
 
 		if (!seedInventoryItem) {
-			await interaction.editReply({
-				content: 'A semente selecionada não foi encontrada no seu inventário.',
-				components: []
-			});
+			const content = 'A semente selecionada não foi encontrada no seu inventário.';
+
+			if (interaction.deferred)
+				await interaction.editReply({
+					content,
+					components: []
+				});
+			else
+				await interaction.reply({
+					content
+				});
 
 			return;
 		}
@@ -711,6 +733,7 @@ export default class FarmCommand extends Command {
 					? ({
 							growthRate: 0,
 							itemId: seedId,
+							createdAt: new Date().toISOString(),
 							itemSlug: seedInventoryItem.item.slug
 					  } as PlantData)
 					: cell
@@ -724,10 +747,9 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		await interaction.editReply({
-			content: `Você plantou com sucesso uma semente de ${seedInventoryItem.item.name} na célula selecionada.`,
-			components: []
-		});
+		await interaction.deleteReply();
+
+		return updatedPlantData;
 	}
 
 	private async harvest(
@@ -839,9 +861,8 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		await interaction.editReply({
-			content: `Você colheu com sucesso ${amount} ${cell.itemSlug}!`,
-			components: []
-		});
+		await interaction.deleteReply();
+
+		return farm.plantData;
 	}
 }
