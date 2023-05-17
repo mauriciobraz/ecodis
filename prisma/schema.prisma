@@ -92,7 +92,7 @@ model Job {
   users UserGuildData[]
   type  JobType         @unique
 
-  cooldown DateTime?
+  cooldown DateTime
   salary   Float
 }
 
@@ -168,6 +168,7 @@ model UserGuildData {
   farm       Farm?
   greenhouse Greenhouse?
 
+  workedAt  DateTime?
   lastDaily DateTime?
 
   energy          Int       @default(1000)
