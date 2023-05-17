@@ -1,6 +1,7 @@
 import { container } from '@sapphire/pieces';
 import { Result } from '@sapphire/result';
 import { UserQueries } from './user';
+import { DEFAULT_PLANT_DATA_GRID, DEFAULT_PURCHASED_AREA } from '../../modules/games/commands/farm';
 
 /**
  * Utility functions for interacting with the database for shop and inventory.
@@ -102,7 +103,8 @@ export namespace ShopQueries {
 		data?: any;
 		userId: string;
 		guildId: string;
-		itemId: string;
+		itemId?: string;
+		animalId?: string;
 		amount: number;
 	}
 
@@ -115,21 +117,40 @@ export namespace ShopQueries {
 	 * @returns A message indicating whether the purchase was successful or not.
 	 */
 	export async function buyItem(options: BuyItemOptions) {
-		const { amount, guildId, itemId, userId, data } = options;
+		const { amount, guildId, itemId, animalId, userId, data } = options;
 
-		// Fetch item information
-		const item = await container.database.item.findUnique({
-			where: {
-				id: itemId
-			}
-		});
+		let price: number | null = null;
 
-		if (!item) {
-			return Result.err('Item not found.');
+		if (itemId) {
+			const item = await container.database.item.findUnique({
+				where: {
+					id: itemId
+				},
+				select: {
+					price: true
+				}
+			});
+
+			price = item?.price ?? -1;
+		} else if (animalId) {
+			const animal = await container.database.animal.findUnique({
+				where: {
+					id: animalId
+				},
+				select: {
+					price: true
+				}
+			});
+
+			price = animal?.price ?? -1;
+		}
+
+		if (price === null || price === -1) {
+			return Result.err('Not found.');
 		}
 
 		// Calculate the total price
-		const totalPrice = item.price * amount;
+		const totalPrice = price * amount;
 
 		// Get the user's balance
 		const userBalances = await UserQueries.getUserBalances({
@@ -183,47 +204,80 @@ export namespace ShopQueries {
 			}
 		});
 
-		let inventory = await container.database.inventory.findUnique({
-			where: { userId: userGuildData.id }
-		});
+		// Add the item to the user's inventory
 
-		if (!inventory) {
-			inventory = await container.database.inventory.create({
-				data: {
-					userId: userGuildData.id
-				}
+		if (itemId) {
+			let inventory = await container.database.inventory.findUnique({
+				where: { userId: userGuildData.id }
 			});
-		}
 
-		const existingItem = await container.database.inventoryItem.findFirst({
-			where: {
-				itemId,
-				inventoryId: inventory.id
-			}
-		});
-
-		if (existingItem) {
-			await container.database.inventoryItem.update({
-				where: {
-					id: existingItem.id
-				},
-				data: {
-					data,
-					amount: {
-						increment: amount
+			if (!inventory) {
+				inventory = await container.database.inventory.create({
+					data: {
+						userId: userGuildData.id
 					}
-				}
-			});
-		} else {
-			await container.database.inventoryItem.create({
-				data: {
-					data,
-					amount,
+				});
+			}
+
+			const existingItem = await container.database.inventoryItem.findFirst({
+				where: {
 					itemId,
 					inventoryId: inventory.id
 				}
 			});
+
+			if (existingItem) {
+				await container.database.inventoryItem.update({
+					where: {
+						id: existingItem.id
+					},
+					data: {
+						data,
+						amount: {
+							increment: amount
+						}
+					}
+				});
+			} else {
+				await container.database.inventoryItem.create({
+					data: {
+						data,
+						amount: amount ?? 1,
+						item: { connect: { id: itemId } },
+						inventory: { connect: { id: inventory.id } }
+					}
+				});
+			}
+		} else if (animalId) {
+			let farm = await container.database.farm.findUnique({
+				where: {
+					userGuildDataId: userGuildData.id
+				}
+			});
+
+			if (!farm) {
+				farm = await container.database.farm.create({
+					data: {
+						userGuildDataId: userGuildData.id,
+						purchasedArea: DEFAULT_PURCHASED_AREA,
+						plantData: DEFAULT_PLANT_DATA_GRID
+					}
+				});
+			}
+
+			// Add the animal to the user's farm
+			await container.database.farmAnimal.create({
+				data: {
+					animalId,
+					farmId: farm.id
+				}
+			});
 		}
+
+		console.log({
+			animalId,
+			itemId
+		});
 
 		return Result.ok({
 			message: 'Item successfully purchased.'

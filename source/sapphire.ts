@@ -9,6 +9,7 @@ import { readdirRecursiveSync } from './utils/fs-utils';
 
 import { createItemsIfNotExists } from './utils/items';
 import { createJobsIfNotExists } from './utils/jobs';
+import { createAnimalsIfNotExists } from './utils/animals';
 
 export class CustomSapphireClient extends SapphireClient {
 	public constructor(options: ClientOptions) {
@@ -47,6 +48,7 @@ export class CustomSapphireClient extends SapphireClient {
 		);
 
 		await createItemsIfNotExists();
+		await createAnimalsIfNotExists();
 		await createJobsIfNotExists();
 
 		return super.login(token);

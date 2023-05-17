@@ -12,6 +12,11 @@ enum Disease {
   Tetanus
 }
 
+enum AnimalDisease {
+  None
+  Rabies
+}
+
 enum JobType {
   Cop
   Vet
@@ -114,7 +119,8 @@ model Item {
   price           Float
   priceInDiamonds Boolean @default(false)
 
-  data Json?
+  data   Json?
+  Animal Animal[]
 }
 
 model Inventory {
@@ -181,6 +187,55 @@ model UserGuildData {
   @@unique([userId, guildId])
 }
 
+enum AnimalType {
+  Horse
+  Rabbit
+  Chicken
+}
+
+model Animal {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  type AnimalType @unique
+
+  item   Item?   @relation(fields: [itemId], references: [id])
+  itemId String? @db.ObjectId
+
+  // [min, max]
+  produceItemRange Int[]
+
+  farms FarmAnimal[]
+
+  name        String
+  emoji       String
+  description String
+
+  price Float
+  isPet Boolean @default(false)
+}
+
+model FarmAnimal {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm   Farm   @relation(fields: [farmId], references: [id])
+  farmId String @db.ObjectId
+
+  animal   Animal @relation(fields: [animalId], references: [id])
+  animalId String @db.ObjectId
+
+  lastFedAt DateTime?
+  disease   AnimalDisease @default(None)
+  nickname  String?
+
+  @@unique([farmId, animalId])
+}
+
 model Farm {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -192,7 +247,11 @@ model Farm {
 
   // number[][]
   purchasedArea Json
-  plantData     Json
+
+  // { createdAt, growthRate, itemId, itemSlug }[]
+  plantData Json
+
+  farmAnimals FarmAnimal[]
 }
 
 model Greenhouse {
@@ -206,5 +265,7 @@ model Greenhouse {
 
   // number[][]
   purchasedArea Json
-  plantData     Json
+
+  // { createdAt, growthRate, itemId, itemSlug }[]
+  plantData Json
 }

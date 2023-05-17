@@ -18,6 +18,8 @@ export enum ItemSlug {
 	Cafe = 'Café',
 	RedBull = 'RedBull',
 
+	Egg = 'Egg',
+
 	Soy = 'Soy',
 	Wheat = 'Wheat',
 	Beans = 'Beans',
@@ -66,6 +68,11 @@ export const ZodParsers = {
 
 		/** The list of diseases that can affect a plant. */
 		diseases: z.array(z.string())
+	}),
+
+	Consumable: CommonSchema.extend({
+		/** The amount of energy that a consumable restores. */
+		energy: z.number().positive().min(0)
 	})
 };
 
@@ -79,6 +86,12 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 		durability: 90,
 		unique: true
 	} as z.infer<typeof ZodParsers.UserPickaxe>,
+
+	// Consumables
+
+	[ItemSlug.Egg]: {
+		energy: 10
+	} as z.infer<typeof ZodParsers.Consumable>,
 
 	// Seeds
 	// Seeds
@@ -360,6 +373,29 @@ export async function createItemsIfNotExists() {
 
 			name: 'RedBull',
 			description: 'Uma bebida energética.'
+		},
+		update: {}
+	});
+
+	// Consumables
+	// Consumables
+	// Consumables
+
+	await container.database.item.upsert({
+		where: {
+			slug: ItemSlug.Egg
+		},
+		create: {
+			slug: ItemSlug.Egg,
+			type: ItemType.Tool,
+
+			emoji: '🥚',
+			price: 300,
+
+			name: 'Ovos de Galinha',
+			description: 'Ovos de galinha para fazer restaurar sua energia.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Egg]
 		},
 		update: {}
 	});

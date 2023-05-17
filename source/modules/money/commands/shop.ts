@@ -16,7 +16,8 @@ export const ItemTypeEmoji = {
 	[ItemType.Ore]: '💎',
 	[ItemType.Tool]: '🛠',
 	[ItemType.Weapon]: '🔫',
-	[ItemType.Greenhouse]: '🏡'
+	[ItemType.Greenhouse]: '🏡',
+	Animal: '🐮'
 };
 
 export const ItemTypeNames = {
@@ -26,7 +27,8 @@ export const ItemTypeNames = {
 	[ItemType.Ore]: 'Minério',
 	[ItemType.Armor]: 'Armadura',
 	[ItemType.Tool]: 'Ferramenta',
-	[ItemType.Weapon]: 'Armamento'
+	[ItemType.Weapon]: 'Armamento',
+	Animal: 'Animais'
 };
 
 @ApplyOptions<Command.Options>({
@@ -55,6 +57,12 @@ export class ShopCommand extends Command {
 					.setLabel('Escolha uma categoria para ver os itens')
 					.setDescription('↓ Está afim de comprar algo?')
 					.setDefault(true),
+
+				new StringSelectMenuOptionBuilder()
+					.setValue('Animal')
+					.setLabel(ItemTypeNames['Animal'])
+					.setEmoji(ItemTypeEmoji['Animal'])
+					.setDescription('→ Clique para ver os animais disponíveis'),
 
 				...itemsTypes.map((itemType) =>
 					new StringSelectMenuOptionBuilder()

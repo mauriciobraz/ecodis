@@ -21,16 +21,16 @@ import {
 import { ItemSlug } from '../../../utils/items';
 import { ShopQueries } from '../../../utils/queries/shop';
 
-import type { Farm } from '@prisma/client';
+import type { Animal, Farm, FarmAnimal, Item } from '@prisma/client';
 import type { StringSelectMenuInteraction } from 'discord.js';
 
-const DEFAULT_PURCHASED_AREA: PurchasedArea = [
+export const DEFAULT_PURCHASED_AREA: PurchasedArea = [
 	[true, false, false],
 	[false, false, false],
 	[false, false, false]
 ];
 
-const DEFAULT_PLANT_DATA_GRID: PlantDataGrid = [
+export const DEFAULT_PLANT_DATA_GRID: PlantDataGrid = [
 	[null, null, null],
 	[null, null, null],
 	[null, null, null]
@@ -60,13 +60,18 @@ interface GetOrCreateFarmOptions {
 	guildId: string;
 }
 
-type ParsedFarm = Farm & {
+type ParseFarmJsonFieldsResult<T> = Result<T, z.ZodError>;
+
+type FarmWithAnimals = Farm & {
 	createdAt: Date;
 	plantData: PlantDataGrid;
 	purchasedArea: PurchasedArea;
+	farmAnimals: (FarmAnimal & {
+		animal: Animal & {
+			item: Item | null;
+		};
+	})[];
 };
-
-type ParseFarmJsonFieldsResult = Result<ParsedFarm, z.ZodError>;
 
 @ApplyOptions<Command.Options>({
 	name: 'fazenda',
@@ -99,13 +104,23 @@ export default class FarmCommand extends Command {
 				break;
 			}
 
-			const farm = farmResult.unwrap();
+			const farm = farmResult.unwrap() as FarmWithAnimals;
 
-			const farmImage = this.generateFarmImage(farm.plantData);
+			const farmImage = this.generateFarmImage(farm);
 			const controlsSelectMenu = this.createControlsSelectMenu(farm.plantData);
 
 			if (!msg) {
 				msg = await message.reply({
+					content: `**Fazenda de ${message.author.username}**\n\nAnimais: ${
+						farm.farmAnimals.length > 0
+							? farm.farmAnimals
+									.map(
+										(farmAnimal) =>
+											`${farmAnimal.animal?.emoji} ${farmAnimal.animal?.name}`
+									)
+									.join(', ')
+							: 'Nenhum'
+					}`,
 					components: [controlsSelectMenu],
 					files: [farmImage]
 				});
@@ -152,9 +167,24 @@ export default class FarmCommand extends Command {
 
 			// Update the farm with the new image.
 			await msg.edit({
+				content: `**Fazenda de ${message.author.username}**\n\nAnimais: ${
+					farm.farmAnimals.length > 0
+						? farm.farmAnimals
+								.map(
+									(farmAnimal) =>
+										`${farmAnimal.animal?.emoji} ${farmAnimal.animal?.name}`
+								)
+								.join(', ')
+						: 'Nenhum'
+				}`,
 				components: [controlsSelectMenu],
 				...(newPlantData && {
-					files: [this.generateFarmImage(newPlantData)]
+					files: [
+						this.generateFarmImage({
+							...farm,
+							plantData: newPlantData
+						})
+					]
 				})
 			});
 		}
@@ -198,6 +228,17 @@ export default class FarmCommand extends Command {
 		let farm = await this.container.database.farm.findFirst({
 			where: {
 				userGuildDataId: userGuildData.id
+			},
+			include: {
+				farmAnimals: {
+					include: {
+						animal: {
+							include: {
+								item: true
+							}
+						}
+					}
+				}
 			}
 		});
 
@@ -208,6 +249,17 @@ export default class FarmCommand extends Command {
 					userGuildDataId: userGuildData.id,
 					purchasedArea: DEFAULT_PURCHASED_AREA,
 					plantData: DEFAULT_PLANT_DATA_GRID
+				},
+				include: {
+					farmAnimals: {
+						include: {
+							animal: {
+								include: {
+									item: true
+								}
+							}
+						}
+					}
 				}
 			});
 		}
@@ -220,7 +272,7 @@ export default class FarmCommand extends Command {
 	 * @param farm Farm object that are being parsed.
 	 * @returns The new object with the parsed fields.
 	 */
-	private parseFarmJsonFields(farm: Farm): ParseFarmJsonFieldsResult {
+	private parseFarmJsonFields<T extends Farm>(farm: T): ParseFarmJsonFieldsResult<T> {
 		const safelyParsedPlantData = PlantDataGridSchema.safeParse(farm?.plantData);
 		const safelyParsedPurchasedArea = PurchasedAreaSchema.safeParse(farm?.purchasedArea);
 
@@ -244,7 +296,7 @@ export default class FarmCommand extends Command {
 	 * @param plantData Data to generate image from.
 	 * @returns Buffer of the generated image.
 	 */
-	private generateFarmImage(plantData: PlantDataGrid): Buffer {
+	private generateFarmImage(farm: FarmWithAnimals): Buffer {
 		const canvasWidth = 400;
 		const canvasHeight = 300;
 
@@ -256,8 +308,8 @@ export default class FarmCommand extends Command {
 		ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
 		// Draw farm grid and plants
-		const gridWidth = plantData[0].length;
-		const gridHeight = plantData.length;
+		const gridWidth = farm.plantData[0].length;
+		const gridHeight = farm.plantData.length;
 
 		const cellWidth = canvasWidth / gridWidth;
 		const cellHeight = canvasHeight / gridHeight;
@@ -269,7 +321,8 @@ export default class FarmCommand extends Command {
 				ctx.strokeRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
 
 				// Draw plant if there is one
-				const plant = plantData[y][x];
+				const plant = farm.plantData[y][x];
+
 				if (plant) {
 					const plantColor = PLANT_COLORS[plant.itemSlug];
 
@@ -446,7 +499,7 @@ export default class FarmCommand extends Command {
 		};
 	}
 
-	private async plantAll(interaction: StringSelectMenuInteraction, farm: ParsedFarm) {
+	private async plantAll(interaction: StringSelectMenuInteraction, farm: FarmWithAnimals) {
 		const seed = await this.askForSeedId(interaction);
 
 		if (!seed) {
@@ -538,7 +591,7 @@ export default class FarmCommand extends Command {
 		return updatedPlantData;
 	}
 
-	private async harvestAll(interaction: StringSelectMenuInteraction, farm: ParsedFarm) {
+	private async harvestAll(interaction: StringSelectMenuInteraction, farm: FarmWithAnimals) {
 		const harvestedItems: { [itemId: string]: number } = {};
 
 		// eslint-disable-next-line @typescript-eslint/prefer-for-of
@@ -659,7 +712,7 @@ export default class FarmCommand extends Command {
 
 	private async plant(
 		interaction: StringSelectMenuInteraction,
-		farm: ParsedFarm,
+		farm: FarmWithAnimals,
 		plantRow: number,
 		plantCol: number,
 		ignoreEmptyCell = false
@@ -754,7 +807,7 @@ export default class FarmCommand extends Command {
 
 	private async harvest(
 		interaction: StringSelectMenuInteraction,
-		farm: ParsedFarm,
+		farm: FarmWithAnimals,
 		plantRow: number,
 		plantCol: number
 	) {
