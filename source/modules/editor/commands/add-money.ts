@@ -8,8 +8,13 @@ import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'dar-dinheiro',
-	aliases: ['add-money', 'adicionar-dinheiro'],
-	preconditions: ['EditorOnly']
+	description: 'Dá uma quantidade de dinheiro para um usuário.',
+
+	aliases: ['add-money', 'dar-dinheiro', 'dar-moedas', 'add-money'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	preconditions: ['GuildOnly', 'EditorOnly']
 })
 export class AddMoneyCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
@@ -18,19 +23,19 @@ export class AddMoneyCommand extends Command {
 
 		if (amount < 0) {
 			await message.reply({
-				content: 'Você não pode dar uma quantidade negativa de dinheiro!'
+				content: 'Você não pode adicionar uma quantidade negativa de moedas.'
 			});
 			return;
 		}
 
-		const updatedUser = await UserQueries.updateBalance({
+		await UserQueries.updateBalance({
 			userId: user.id,
 			guildId: message.guildId,
 			balance: ['increment', amount]
 		});
 
 		await message.reply({
-			content: `Você adicionou **${amount}** moedas para <@${user.id}>. Agora ele tem **${updatedUser.updatedBalance}** moedas.`
+			content: `Você adicionou **${amount}** moedas para <@${user.id}>.`
 		});
 	}
 }

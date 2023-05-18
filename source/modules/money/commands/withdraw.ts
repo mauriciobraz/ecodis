@@ -7,7 +7,10 @@ import { UserQueries } from '../../../utils/queries/user';
 
 @ApplyOptions<Command.Options>({
 	name: 'sacar',
-	aliases: ['withdraw']
+	description: 'Saque dinheiro da sua conta.',
+
+	aliases: ['withdraw', 'wd', 'retirar'],
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class WithdrawCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {

@@ -1,17 +1,22 @@
 import { JobType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
-import type { Args } from '@sapphire/framework';
 import { Command } from '@sapphire/framework';
-import type { Message } from 'discord.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } from 'discord.js';
+
 import { UserQueries } from '../../../utils/queries/user';
+
+import type { Args } from '@sapphire/framework';
+import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'remover-trabalho',
-	aliases: ['remove-job', 'rem-job', 'remover-job'],
-	description: 'Remove um trabalho de um usuário.',
-	preconditions: ['GuildOnly'],
-	requiredUserPermissions: ['Administrator']
+	description: 'Remove o trabalho de um usuário.',
+
+	aliases: ['rem-job', 'remover-trabalho', 'remover-trabalhador'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	preconditions: ['GuildOnly', 'EditorOnly']
 })
 export class RemoveJobCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
@@ -19,7 +24,7 @@ export class RemoveJobCommand extends Command {
 
 		if (userResult.isErr()) {
 			await message.reply({
-				content: 'Por favor, mencione um usuário válido.'
+				content: 'Você precisa mencionar um usuário para remover o trabalho.'
 			});
 
 			return;
@@ -30,16 +35,10 @@ export class RemoveJobCommand extends Command {
 		const userDb = await UserQueries.getOrCreate(user.id);
 
 		const guildDb = await this.container.database.guild.upsert({
-			where: {
-				discordId: message.guildId
-			},
-			create: {
-				discordId: message.guildId
-			},
+			where: { discordId: message.guildId },
+			create: { discordId: message.guildId },
 			update: {},
-			select: {
-				id: true
-			}
+			select: { id: true }
 		});
 
 		const userGuildData = await this.container.database.userGuildData.upsert({
@@ -62,7 +61,8 @@ export class RemoveJobCommand extends Command {
 
 		if (!userGuildData.job) {
 			await message.reply({
-				content: 'O usuário não possui uma profissão para remover.'
+				content:
+					'O usuário que você mencionou não possui um trabalho. Caso queira adicionar, use o comando `add-job`.'
 			});
 
 			return;
@@ -91,7 +91,6 @@ export class RemoveJobCommand extends Command {
 
 		collector.on('collect', async (interaction) => {
 			if (interaction.customId === 'confirm') {
-				// Remove the job from the user in the database
 				await this.container.database.userGuildData.update({
 					where: {
 						id: userGuildData.id
@@ -123,7 +122,7 @@ export class RemoveJobCommand extends Command {
 		collector.on('end', async (collected) => {
 			if (collected.size === 0) {
 				await message.reply({
-					content: 'Você não respondeu. Ação cancelada.',
+					content: 'Tempo esgotado.',
 					components: []
 				});
 			}

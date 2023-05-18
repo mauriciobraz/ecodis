@@ -1,12 +1,18 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import type { Args } from '@sapphire/framework';
 import { Command } from '@sapphire/framework';
 import { PermissionFlagsBits } from 'discord.js';
+
+import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'rem-editor',
 	description: 'Remove um usuário da lista de editores deste servidor.',
+
+	aliases: ['rem-edit', 'rem-editors', 'rem-editores', 'rem-editora', 'rem-editoras'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
 	preconditions: ['GuildOnly'],
 	requiredUserPermissions: [PermissionFlagsBits.Administrator]
 })
@@ -29,7 +35,7 @@ export class AddEditorCommand extends Command {
 		if (isNotEditor) {
 			await message.reply({
 				content:
-					'Esse usuário não é um editor. Caso você queira adicionar ele, use o comando `add-editor`'
+					'Esse usuário não é um editor deste servidor. Talvez você queira adicionar ele, use o comando `add-editor`.'
 			});
 
 			return;

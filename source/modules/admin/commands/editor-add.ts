@@ -1,13 +1,20 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
+import { PermissionFlagsBits } from 'discord.js';
 
 import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'add-editor',
+	description: 'Adiciona um usuário na lista de editores deste servidor.',
+
+	aliases: ['add-edit', 'add-editors', 'add-editores', 'add-editora', 'add-editoras'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
 	preconditions: ['GuildOnly'],
-	requiredUserPermissions: ['Administrator']
+	requiredUserPermissions: [PermissionFlagsBits.Administrator]
 })
 export class AddEditorCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
@@ -24,7 +31,7 @@ export class AddEditorCommand extends Command {
 		if (isAlreadyEditor) {
 			await message.reply({
 				content:
-					'Esse usuário já é um editor. Caso você queira remover ele, use o comando `remove-editor`.'
+					'O usuário selecionado já é um editor neste servidor. Talvez você queira remover ele, use o comando `remove-editor`.'
 			});
 
 			return;
@@ -66,7 +73,8 @@ export class AddEditorCommand extends Command {
 		});
 
 		await message.reply({
-			content: 'O usuário foi adicionado na lista de editores.'
+			content:
+				'O usuário foi adicionado na lista de editores deste servidor. Para remover, use o comando `remove-editor`.'
 		});
 	}
 }

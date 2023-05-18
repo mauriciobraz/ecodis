@@ -9,9 +9,14 @@ import { UserQueries } from '../../../utils/queries/user';
 const DAILY_TIMEOUT = Time.Day;
 
 @ApplyOptions<Command.Options>({
-	name: 'daily',
-	description: 'Claim your daily money',
-	preconditions: ['GuildOnly']
+	name: 'diário',
+	description: 'Reivindique seu dinheiro diário.',
+
+	aliases: ['diario', 'daily', 'bonus', 'daily-bonus'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class DailyCommand extends Command {
 	public override async messageRun(message: Message<true>) {

@@ -9,9 +9,13 @@ const TOP_USERS_COUNT = 15;
 
 @ApplyOptions<Command.Options>({
 	name: 'top-diamonds',
-	aliases: ['topd'],
-	description: 'Displays the top 15 users with the most diamonds globally.',
-	preconditions: ['GuildOnly']
+	description: 'Mostra os 15 usuários com mais diamantes em todo o mundo.',
+
+	aliases: ['top-d', 'top-diamantes', 'ricos-diamantes'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class TopDiamondsCommand extends Command {
 	public override async messageRun(message: Message<true>) {

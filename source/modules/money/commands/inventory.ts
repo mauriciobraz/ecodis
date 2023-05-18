@@ -8,8 +8,9 @@ import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'inventory',
-	aliases: ['inv'],
-	description: 'Displays your inventory.',
+	description: 'Exibe seu inventário.',
+
+	aliases: ['inv', 'inventario', 'itens'],
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class InventoryCommand extends Command {

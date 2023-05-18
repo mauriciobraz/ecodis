@@ -8,7 +8,10 @@ import { UserQueries } from '../../../utils/queries/user';
 
 @ApplyOptions<Command.Options>({
 	name: 'transferir',
-	aliases: ['transfer']
+	description: 'Transfira dinheiro para outro usuário.',
+
+	aliases: ['transfer', 'trans', 'enviar', 'pagar'],
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class TransferCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {

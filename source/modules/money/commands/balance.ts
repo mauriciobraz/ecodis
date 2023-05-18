@@ -10,7 +10,10 @@ import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'saldo',
-	aliases: ['balance']
+	description: 'Mostra seu saldo atual.',
+
+	aliases: ['balance', 'bal', 'dinheiro', 'cash'],
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class BalanceCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {

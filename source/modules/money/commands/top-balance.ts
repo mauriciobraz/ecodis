@@ -9,9 +9,13 @@ const TOP_USERS_COUNT = 15;
 
 @ApplyOptions<Command.Options>({
 	name: 'top',
-	aliases: ['topbalance', 'topbal'],
 	description: `Mostra os ${TOP_USERS_COUNT} usuários com maior saldo do servidor.`,
-	preconditions: ['GuildOnly']
+
+	aliases: ['top-balance', 'top-bal', 'ricos', 'top-ricos'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class TopBalanceCommand extends Command {
 	public override async messageRun(message: Message<true>) {

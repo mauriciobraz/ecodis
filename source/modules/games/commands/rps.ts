@@ -22,7 +22,19 @@ const RPS_CHOICES: Record<RPSChoice, RegExp> = {
 
 @ApplyOptions<Command.Options>({
 	name: 'ppt',
-	aliases: ['pedra-papel-tesoura', 'rps'],
+	description: 'Inicie uma partida de pedra, papel e tesoura contra o bot.',
+
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	aliases: [
+		'pedra-papel-tesoura',
+		'jogo-ppt',
+		'jogar-ppt',
+		'rps',
+		'rock-paper-scissors',
+		'play-rps'
+	],
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class RockPaperScissorsCommand extends Command {

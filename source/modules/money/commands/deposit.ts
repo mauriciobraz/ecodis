@@ -8,7 +8,10 @@ import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'depositar',
-	aliases: ['deposit']
+	description: 'Deposite dinheiro em sua conta.',
+
+	aliases: ['deposit', 'dep', 'deposito'],
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class DepositCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {

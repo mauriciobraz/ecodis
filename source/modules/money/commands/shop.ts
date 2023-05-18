@@ -33,7 +33,9 @@ export const ItemTypeNames = {
 
 @ApplyOptions<Command.Options>({
 	name: 'shop',
-	aliases: ['loja'],
+	description: 'Navegue na loja e compre itens.',
+
+	aliases: ['loja', 'mercado', 'store'],
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class ShopCommand extends Command {

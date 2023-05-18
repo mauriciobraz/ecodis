@@ -415,8 +415,8 @@ export async function createItemsIfNotExists() {
 			emoji: '🌱',
 			price: 10,
 
-			name: 'Soy',
-			description: 'A seed for planting soy.',
+			name: 'Soja',
+			description: 'Sementes de soja para plantar.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Soy]
 		},
@@ -434,8 +434,8 @@ export async function createItemsIfNotExists() {
 			emoji: '🌾',
 			price: 15,
 
-			name: 'Wheat',
-			description: 'A seed for planting wheat.',
+			name: 'Trigo',
+			description: 'Sementes de trigo para plantar.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Wheat]
 		},
@@ -453,8 +453,8 @@ export async function createItemsIfNotExists() {
 			emoji: '🌱',
 			price: 12,
 
-			name: 'Beans',
-			description: 'A seed for planting beans.',
+			name: 'Feijão',
+			description: 'Sementes de feijão para plantar.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Beans]
 		},
@@ -472,8 +472,8 @@ export async function createItemsIfNotExists() {
 			emoji: '🎃',
 			price: 20,
 
-			name: 'Pumpkin',
-			description: 'A seed for planting pumpkins.',
+			name: 'Abóbora',
+			description: 'Sementes de abóbora para plantar.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Pumpkin]
 		},
@@ -492,7 +492,7 @@ export async function createItemsIfNotExists() {
 			price: 25,
 
 			name: 'Cannabis',
-			description: 'A seed for planting cannabis.',
+			description: 'Sementes de cannabis para plantar.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Cannabis]
 		},
@@ -510,8 +510,8 @@ export async function createItemsIfNotExists() {
 			emoji: '🍓',
 			price: 100,
 
-			name: 'Strawberry',
-			description: 'A seed for planting strawberry.',
+			name: 'Morango',
+			description: 'Semente para plantar morangos na estufa.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Strawberry]
 		},
@@ -529,8 +529,8 @@ export async function createItemsIfNotExists() {
 			emoji: '🍒',
 			price: 100,
 
-			name: 'Red Berries',
-			description: 'A seed for planting red berries.',
+			name: 'Frutas Vermelhas',
+			description: 'Semente para plantar frutas vermelhas na estufa.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Strawberry]
 		},
@@ -548,8 +548,8 @@ export async function createItemsIfNotExists() {
 			emoji: '🌱',
 			price: 150,
 
-			name: 'Fertilizer',
-			description: 'A fertilizer that allows planting in greenhouse.',
+			name: 'Adubo',
+			description: 'Adubo para poder plantar na estufa.',
 
 			data: DEFAULT_ITEM_DATA[ItemSlug.Strawberry]
 		},

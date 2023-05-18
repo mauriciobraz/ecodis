@@ -10,10 +10,20 @@ const CHANCE_OF_LOSS = 0.6;
 
 @ApplyOptions<Command.Options>({
 	name: 'lavar',
-	aliases: ['laundry', 'l'],
-	description: 'Lave seu dinheiro sujo.',
-	detailedDescription:
-		'Lave seu dinheiro sujo. Este comando possui uma taxa de 10% sobre o dinheiro lavado.'
+	description:
+		'Lave seu dinheiro sujo. Este comando possui uma taxa de 10% sobre o dinheiro lavado.',
+
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	aliases: [
+		'lavar-dinheiro',
+		'lavar-dinheiro-sujo',
+		'lavagem-de-dinheiro',
+		'lavagem-de-dinheiro-sujo',
+		'laundry'
+	],
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class LaundryCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {

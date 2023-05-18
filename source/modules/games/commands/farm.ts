@@ -8,7 +8,7 @@ import {
 	StringSelectMenuOptionBuilder,
 	type Message
 } from 'discord.js';
-import type { z } from 'zod';
+import dedent from 'ts-dedent';
 
 import {
 	PlantDataGridSchema,
@@ -23,6 +23,7 @@ import { ShopQueries } from '../../../utils/queries/shop';
 
 import type { Animal, Farm, FarmAnimal, Item } from '@prisma/client';
 import type { StringSelectMenuInteraction } from 'discord.js';
+import type { z } from 'zod';
 
 export const DEFAULT_PURCHASED_AREA: PurchasedArea = [
 	[true, false, false],
@@ -75,8 +76,29 @@ type FarmWithAnimals = Farm & {
 
 @ApplyOptions<Command.Options>({
 	name: 'fazenda',
-	aliases: ['farm'],
 	description: 'Gerencia sua fazenda, onde você pode plantar e colher suas sementes.',
+
+	detailedDescription: dedent`
+		Bem-vindo à nossa fazenda interativa! Este mini-jogo oferece a oportunidade de administrar a sua própria fazenda virtual. Aqui, você pode plantar e colher diversas sementes, criar animais e vender os produtos de sua fazenda para ganhar dinheiro.
+
+		Adora animais? Ótimo! Aqui você tem a chance de adquirir animais adoráveis para sua fazenda. Esses animais não só trazem vida à sua fazenda, mas também ajudam na produção de itens especiais. Só não se esqueça de alimentá-los!
+
+		**# Instruções passo a passo**
+
+			\`1.\` Comprando Sementes: Antes de tudo, você precisa de sementes para plantar. Para comprar sementes, use o comando /loja. No menu da loja, selecione a categoria Fazenda e escolha a semente que você deseja comprar.
+
+			\`2.\` Plantando Sementes: Após a compra, é hora de plantar suas sementes! Use o comando /fazenda e selecione Plantar (Todos). Se preferir, você também pode escolher uma área específica para plantar.
+
+			\`3.\` Crescimento das plantas: As plantas precisam de um tempo para crescer. Você pode verificar o progresso do crescimento das suas plantas a qualquer momento utilizando o comando /fazenda. O crescimento será visível na imagem da sua fazenda.
+
+		**# Amplie sua fazenda com animais**
+
+		Se desejar adicionar um toque extra à sua fazenda, visite a categoria Animais na loja. Lá você pode comprar animais que irão automaticamente produzir itens para você. Por exemplo, um cavalo pode produzir adubo, essencial para o crescimento saudável de suas plantas na estufa.
+
+		Assim, você pode se transformar em um verdadeiro fazendeiro virtual, gerenciando plantas e animais na sua fazenda. Desfrute deste mini-jogo relaxante e agradável, e boa sorte na sua jornada agrícola!
+	`,
+
+	aliases: ['farm'],
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export default class FarmCommand extends Command {

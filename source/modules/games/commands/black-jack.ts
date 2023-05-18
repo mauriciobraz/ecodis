@@ -14,9 +14,24 @@ enum Suit {
 
 @ApplyOptions<Command.Options>({
 	name: 'blackjack',
+	description: 'Desafie o bot para uma partida de blackjack!',
+
+	detailedDescription: dedent`
+		No comando de blackjack, você pode apostar um certo número de moedas contra o bot em uma partida de blackjack (também conhecido como 21).
+
+		O objetivo do jogo é ter uma mão de cartas cujo valor total seja o mais próximo possível de 21 sem ultrapassar. Se o total das suas cartas ultrapassar 21, você "estoura" e perde a aposta. Cada partida começa com cada jogador recebendo duas cartas.
+
+		Aqui estão algumas opções que você pode escolher durante o jogo:
+		- Se a soma das suas cartas for menor que 21, você pode escolher pedir outra carta (chamado de "hit") para tentar chegar mais perto de 21.
+		- Se você achar que a soma das suas cartas é alta o suficiente, pode escolher não receber mais cartas (chamado de "stand").
+
+		O jogo termina quando você escolhe parar de receber cartas ou sua soma ultrapassa 21, ou o bot tem um total de 17 ou mais. Se a soma das suas cartas for maior que a do bot (e menor ou igual a 21), você ganha a aposta. Se o bot tiver uma soma maior (e menor ou igual a 21), ou você ultrapassar 21, você perde a aposta. Em caso de empate (mesma soma), ninguém ganha.
+
+			A quantidade de moedas que você ganha ou perde é igual à quantidade que você apostou no início do jogo. Divirta-se jogando blackjack!
+	`,
+
 	aliases: ['bj', '21'],
-	description: 'Jogue uma partida de blackjack!',
-	preconditions: ['GuildOnly']
+	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class BlackjackCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {

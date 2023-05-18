@@ -1,23 +1,28 @@
 import { JobType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
-import type { Args } from '@sapphire/framework';
 import { Command } from '@sapphire/framework';
 import {
 	ActionRowBuilder,
-	ComponentType,
-	StringSelectMenuBuilder,
-	type Message,
 	ButtonBuilder,
-	ButtonStyle
+	ButtonStyle,
+	ComponentType,
+	StringSelectMenuBuilder
 } from 'discord.js';
+
 import { UserQueries } from '../../../utils/queries/user';
+
+import type { Args } from '@sapphire/framework';
+import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'adicionar-trabalho',
-	aliases: ['add-job', 'add-trabalho', 'adicionar-job'],
-	description: 'Adiciona uma profissão a um usuário.',
-	preconditions: ['GuildOnly'],
-	requiredUserPermissions: ['Administrator']
+	description: 'Atribui um trabalho a um usuário.',
+
+	aliases: ['add-job', 'adicionar-trabalho', 'adicionar-trabalhador'],
+	generateDashLessAliases: true,
+	generateUnderscoreLessAliases: true,
+
+	preconditions: ['GuildOnly', 'EditorOnly']
 })
 export class AddJobCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
@@ -25,7 +30,7 @@ export class AddJobCommand extends Command {
 
 		if (userResult.isErr()) {
 			await message.reply({
-				content: 'Por favor, mencione um usuário válido.'
+				content: 'Você precisa mencionar um usuário para atribuir um trabalho.'
 			});
 
 			return;
@@ -69,7 +74,7 @@ export class AddJobCommand extends Command {
 		const jobMenu = this.createJobMenu();
 
 		await message.reply({
-			content: 'Por favor, selecione uma profissão para o usuário.',
+			content: 'Selecione uma profissão para adicionar ao usuário.',
 			components: [jobMenu]
 		});
 
@@ -105,7 +110,6 @@ export class AddJobCommand extends Command {
 							: ''
 					}`,
 					components: [confirmationButtons]
-					// ephemeral: true
 				});
 
 				const confirmationCollector = interaction.channel?.createMessageComponentCollector({
@@ -118,7 +122,6 @@ export class AddJobCommand extends Command {
 					if (buttonInteraction.customId === 'confirm') {
 						await buttonInteraction.deferUpdate();
 
-						// Add the job to the user in the database
 						await this.container.database.userGuildData.update({
 							where: {
 								id: userGuildData.id
@@ -133,7 +136,7 @@ export class AddJobCommand extends Command {
 						});
 
 						await interaction.editReply({
-							content: `A profissão de ${selectedJob} foi adicionada ao usuário.`,
+							content: `Você adicionou a profissão de ${selectedJob} ao usuário.`,
 							components: []
 						});
 					} else if (buttonInteraction.customId === 'cancel') {
@@ -147,7 +150,7 @@ export class AddJobCommand extends Command {
 				confirmationCollector?.on('end', async (collected) => {
 					if (collected.size === 0) {
 						await interaction.editReply({
-							content: 'Você não respondeu. Ação cancelada.',
+							content: 'Tempo esgotado.',
 							components: []
 						});
 					}
@@ -160,7 +163,7 @@ export class AddJobCommand extends Command {
 		return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
 			new StringSelectMenuBuilder()
 				.setCustomId('jobMenu')
-				.setPlaceholder('Selecione uma profissão')
+				.setPlaceholder('Selecione uma profissão para adicionar ao usuário.')
 				.addOptions([
 					{
 						label: 'Cop',

@@ -7,6 +7,12 @@ import { UserQueries } from '../../../utils/queries/user';
 
 @ApplyOptions<Command.Options>({
 	name: 'work',
+	description: 'Trabalhe para ganhar dinheiro.',
+
+	detailedDescription:
+		'O comando de trabalho permite que você trabalhe para ganhar dinheiro. Você pode executar este comando uma vez a cada período definido (como a cada hora, dependendo do sistema de seu servidor) para receber uma quantidade fixa ou aleatória de dinheiro. Alguns sistemas também podem ter diferentes "trabalhos" que você pode fazer, cada um com diferentes pagamentos ou requisitos.',
+
+	aliases: ['trabalhar', 'emprego', 'job'],
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class WorkCommand extends Command {

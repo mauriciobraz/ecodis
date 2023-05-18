@@ -4,7 +4,12 @@ import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'revistar',
-	description: 'Revista um usuário em busca de itens ilegais',
+	description: 'Reviste um usuário para verificar a presença de itens ilegais.',
+
+	detailedDescription:
+		'O comando revistar permite que você verifique o inventário de outro usuário em busca de itens ilegais. É uma ferramenta útil para aplicação da lei e moderação do servidor.',
+
+	aliases: ['revistar-inventario', 'revistar-inventário', 'revistar-inventory'],
 	preconditions: ['GuildOnly']
 })
 export class RevistarCommand extends Command {
@@ -12,7 +17,7 @@ export class RevistarCommand extends Command {
 		const user = message.mentions.users.first();
 		if (!user) {
 			await message.reply({
-				content: 'Você precisa mencionar um usuário para revistar.'
+				content: 'Por favor, mencione um usuário para revistar.'
 			});
 
 			return;
@@ -29,7 +34,7 @@ export class RevistarCommand extends Command {
 
 		if (!targetInventory) {
 			await message.reply({
-				content: 'O usuário não possui um inventário.'
+				content: `${user.username} não possui um inventário para ser revistado.`
 			});
 
 			return;
@@ -45,7 +50,7 @@ export class RevistarCommand extends Command {
 
 		if (illegalItems.length === 0) {
 			await message.reply({
-				content: 'O usuário não possui itens ilegais.'
+				content: `${user.username} não possui itens ilegais em seu inventário.`
 			});
 			return;
 		}
@@ -53,7 +58,9 @@ export class RevistarCommand extends Command {
 		const itemNames = illegalItems.map((item) => item.id);
 
 		await message.reply(
-			`O usuário possui os seguintes itens ilegais: **${itemNames.join(', ')}**.`
+			`${
+				user.username
+			} possui os seguintes itens ilegais em seu inventário: **${itemNames.join(', ')}**.`
 		);
 	}
 }

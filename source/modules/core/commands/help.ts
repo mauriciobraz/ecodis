@@ -15,12 +15,11 @@ export class HelpCommand extends Command {
 
 		const embed = new EmbedBuilder()
 			.setColor(Colors.Blurple)
-			.setTitle('Comandos disponíveis (ALPHA)')
+			.setTitle('Comandos Disponíveis (ALPHA)')
 			.setDescription(
 				sortedCommands
 					.map(
-						(cmd) =>
-							`**${cmd.name}** - ${cmd.description || 'Sem descrição disponível.'}`
+						(cmd) => `**${cmd.name}** - ${cmd.description || 'Descrição Indisponível.'}`
 					)
 					.join('\n')
 			);

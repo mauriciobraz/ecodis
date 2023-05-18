@@ -10,7 +10,9 @@ const PERCENTAGE_TO_GET_CAUGHT = 0.05;
 
 @ApplyOptions<Command.Options>({
 	name: 'crime',
-	description: 'Comete um crime para ganhar dinheiro (e gastar energia).',
+	description:
+		'Quer ganhar dinheiro fácil? Cometa um crime *~~(mas cuidado para não ser preso)~~*!',
+
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class CrimeCommand extends Command {

@@ -8,7 +8,7 @@ import {
 	StringSelectMenuOptionBuilder,
 	type Message
 } from 'discord.js';
-import type { z } from 'zod';
+import dedent from 'ts-dedent';
 
 import {
 	PlantDataGridSchema,
@@ -23,6 +23,7 @@ import { ShopQueries } from '../../../utils/queries/shop';
 
 import type { Greenhouse } from '@prisma/client';
 import type { StringSelectMenuInteraction } from 'discord.js';
+import type { z } from 'zod';
 
 const DEFAULT_PURCHASED_AREA: PurchasedArea = [
 	[true, false, false],
@@ -66,9 +67,17 @@ type ParsedGreenhouse = Greenhouse & {
 type ParseGreenhouseJsonFieldsResult = Result<ParsedGreenhouse, z.ZodError>;
 
 @ApplyOptions<Command.Options>({
-	name: 'estufa',
-	aliases: ['greenhouse'],
-	description: 'Gerencie sua estufa de plantas.',
+	name: 'mina',
+	description: 'Inicie uma aventura de mineração!',
+
+	detailedDescription: dedent`
+		A mina é um mini-jogo onde você pode explorar um mapa de mineração, desenterrar minérios e vender os recursos coletados por dinheiro.
+		Você gosta de arriscar suas chances para encontrar minérios valiosos? Sem problemas! Na mina, você pode experimentar a emoção da descoberta a cada quadrado escolhido para mineração.
+
+		\`1.\` Para comprar uma picareta, selecione a categoria \`Mina\` e escolha a picareta que você deseja comprar.
+		\`2.\` A cada uso do comando, você minerará um quadrado do mapa. O progresso é mostrado no mapa da mina, ou seja, basta apenas usar o comando \`/mina\` novamente para ver o progresso.
+	`,
+
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export default class GreenhouseCommand extends Command {

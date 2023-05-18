@@ -15,6 +15,7 @@ import {
 import type { ChatInputCommandInteraction } from 'discord.js';
 import { ZodParsers, getItemId } from '../../../utils/items';
 import type { ItemSlug } from '../../../utils/items';
+import dedent from 'ts-dedent';
 
 type CachedInGuild = 'cached' | 'raw';
 
@@ -78,6 +79,16 @@ const RESPONSE_TIMEOUT = 3e3;
 @ApplyOptions<Command.Options>({
 	name: 'mina',
 	description: 'Inicia uma partida de mina.',
+
+	detailedDescription: dedent`
+		O comando Mina permite que você participe de um divertido e envolvente jogo de mineração direto no seu servidor Discord.
+		Para jogar, você precisará de uma picareta que pode ser obtida na loja.
+		Cada vez que você minera, a durabilidade da sua picareta diminui - se chegar a zero, sua picareta estará quebrada e você precisará de uma nova.
+		Na grade de mineração, os minérios e minerais são colocados aleatoriamente. Cada quadrado que você escolher para minar pode potencialmente descobrir itens valiosos ou simples pedras.
+		Seja sábio com suas escolhas e tente encontrar os recursos mais valiosos antes que sua picareta quebre ou o tempo acabe.
+		Aproveite a emoção da mineração sem sair do seu servidor Discord!
+	`,
+
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class MineCommand extends Command {
