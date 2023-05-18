@@ -40,6 +40,10 @@ const bree = new Bree({
 		{
 			name: 'growthRate',
 			interval: 'every 5 seconds'
+		},
+		{
+			name: 'applyDisease',
+			interval: 'every 5 seconds'
 		}
 	]
 });

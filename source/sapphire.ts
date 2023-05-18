@@ -43,7 +43,8 @@ export class CustomSapphireClient extends SapphireClient {
 						model: 'Item',
 						cacheTime: 720
 					}
-				]
+				],
+				excludeModels: ['UserGuildData']
 			})
 		);
 

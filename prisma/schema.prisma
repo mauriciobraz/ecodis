@@ -7,11 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Disease {
-  Flu
-  Tetanus
-}
-
 enum AnimalDisease {
   None
   Rabies
@@ -168,7 +163,12 @@ model UserGuildData {
   job   Job?    @relation(fields: [jobId], references: [id])
   jobId String? @db.ObjectId
 
-  disease   Disease?
+  /// type Vaccination = {
+  ///     immunizationTime: number;
+  ///     infected: boolean;
+  /// }
+  vaccinationData Json?
+
   inventory Inventory?
 
   farm       Farm?
