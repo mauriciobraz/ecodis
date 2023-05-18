@@ -84,9 +84,11 @@ export class RockPaperScissorsCommand extends Command {
 		});
 
 		if (balances.balance < amount) {
-			return message.channel.send({
+			await message.channel.send({
 				content: `Você não tem dinheiro suficiente para apostar ${amount} moedas.`
 			});
+
+			return;
 		}
 
 		const { isTie, prize } = this.handleGame(choice);

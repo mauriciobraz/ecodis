@@ -5,12 +5,11 @@ import '@sapphire/plugin-logger/register';
 import '@sapphire/plugin-subcommands/register';
 
 import Bree from 'bree';
-import { container } from '@sapphire/pieces';
 import { GatewayIntentBits } from 'discord.js';
 
+import { join } from 'path';
 import { CustomSapphireClient } from './sapphire';
 import { CONFIG } from './utils/constants/config';
-import { join } from 'path';
 
 const client = new CustomSapphireClient({
 	regexPrefix: /^!/,

@@ -61,9 +61,11 @@ export class FlipCoinCommand extends Command {
 		});
 
 		if (balances.balance < amount) {
-			return message.channel.send({
+			await message.channel.send({
 				content: `Você não tem dinheiro suficiente para apostar ${amount} moedas.`
 			});
+
+			return;
 		}
 
 		if (!this.isFlipCoinChoice(choice)) {
@@ -86,6 +88,8 @@ export class FlipCoinCommand extends Command {
 			await message.reply({
 				content: `Ganhaste ${prize} moedas! O teu saldo atual é de ${updatedBalance} moedas.`
 			});
+
+			return;
 		}
 
 		if (prize < 0) {
