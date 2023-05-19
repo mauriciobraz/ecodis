@@ -12,40 +12,11 @@ import type { Message } from 'discord.js';
 })
 export class BlacklistCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
-		// const isAll = args.getFlags('all');
-		const guildId = await args.pick('string');
-
-		// const commandKeys = Array.from(this.container.stores.get('commands').keys());
-
-		// console.log({
-		// 	isAll,
-		// 	commandKeys
-		// });
-
-		// await this.container.database.guild.upsert({
-		// 	where: {
-		// 		discordId: guildId
-		// 	},
-		// 	create: {
-		// 		discordId: guildId,
-		// 		blacklistedCommands: isAll ? commandKeys : []
-		// 	},
-		// 	update: {
-		// 		blacklistedCommands: isAll ? commandKeys : []
-		// 	}
-		// });
-
-		// if (isAll) {
-		// 	await message.reply({
-		// 		content: 'Todos os comandos foram adicionados à blacklist deste servidor.'
-		// 	});
-
-		// 	return;
-		// }
+		const guildId = await args.pick('number');
 
 		const guild = await this.container.database.guild.findUnique({
 			where: {
-				discordId: guildId
+				discordId: `${guildId}`
 			},
 			select: {
 				blacklistedCommands: true
