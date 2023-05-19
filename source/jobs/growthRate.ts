@@ -5,16 +5,13 @@ import { parentPort } from 'worker_threads';
 import { PrismaClient } from '@prisma/client';
 import { differenceInMilliseconds } from 'date-fns';
 
-import { EmployeeType, EmploymentDataSchema } from '../modules/others/commands/office';
 import {
 	PlantDataGridSchema as FarmPlantDataGridSchema,
-	PurchasedAreaSchema as FarmPurchasedAreaSchema,
-	type PlantDataGrid as FarmPlantDataGrid
+	PurchasedAreaSchema as FarmPurchasedAreaSchema
 } from '../utils/farm';
 import {
 	PlantDataGridSchema as GreenhousePlantDataGridSchema,
-	PurchasedAreaSchema as GreenhousePurchasedAreaSchema,
-	type PlantDataGrid as GreenhousePlantDataGrid
+	PurchasedAreaSchema as GreenhousePurchasedAreaSchema
 } from '../utils/greenhouse';
 import { DEFAULT_ITEM_DATA, ZodParsers } from '../utils/items';
 
