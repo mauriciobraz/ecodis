@@ -22,7 +22,7 @@ export const ItemTypeEmoji = {
 
 export const ItemTypeNames = {
 	[ItemType.Greenhouse]: 'Estufa',
-	[ItemType.Farm]: 'Fazenda',
+	[ItemType.Farm]: 'Sementes',
 	[ItemType.Food]: 'Comida',
 	[ItemType.Ore]: 'Minério',
 	[ItemType.Armor]: 'Armadura',
