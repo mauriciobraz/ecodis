@@ -92,7 +92,7 @@ model Job {
   users UserGuildData[]
   type  JobType         @unique
 
-  cooldown DateTime
+  cooldown Int   @default(3600) // cooldown in seconds
   salary   Float
 }
 

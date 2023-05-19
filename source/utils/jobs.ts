@@ -9,7 +9,7 @@ export async function createJobsIfNotExists() {
 		create: {
 			type: JobType.Doctor,
 			salary: 4000,
-			cooldown: new Date(1000 * 60 * 60 * 3)
+			cooldown: 10800
 		},
 		update: {}
 	});
@@ -21,7 +21,7 @@ export async function createJobsIfNotExists() {
 		create: {
 			type: JobType.Vet,
 			salary: 3000,
-			cooldown: new Date(1000 * 60 * 60 * 3)
+			cooldown: 10800
 		},
 		update: {}
 	});
@@ -33,7 +33,7 @@ export async function createJobsIfNotExists() {
 		create: {
 			type: JobType.Cop,
 			salary: 3500,
-			cooldown: new Date(1000 * 60 * 60 * 3)
+			cooldown: 10800
 		},
 		update: {}
 	});
