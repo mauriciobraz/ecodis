@@ -23,24 +23,19 @@ export class NotArrestedPrecondition extends Precondition {
 	}
 
 	private async handleNotArrested(userId: string, guildId: string) {
-		const guild = await this.container.database.guild.findUnique({
-			where: {
-				discordId: guildId
-			}
+		const guild = await this.container.database.guild.upsert({
+			where: { discordId: guildId },
+			create: { discordId: guildId },
+			update: {},
+			select: { id: true }
 		});
 
-		const user = await this.container.database.user.findUnique({
-			where: {
-				discordId: userId
-			}
+		const user = await this.container.database.user.upsert({
+			where: { discordId: userId },
+			create: { discordId: userId },
+			update: {},
+			select: { id: true }
 		});
-
-		if (!guild || !user) {
-			return this.error({
-				identifier: 'Unknown',
-				message: 'Ocorreu um erro desconhecido. Tenta novamente mais tarde.'
-			});
-		}
 
 		const isArrested = await this.container.database.userPrison.findUnique({
 			where: {
