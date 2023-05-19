@@ -184,7 +184,8 @@ model UserGuildData {
   robbedAt         DateTime?
   committedCrimeAt DateTime?
 
-  lastDaily DateTime?
+  lastDaily   DateTime?
+  lastBankFee DateTime?
 
   energy          Int       @default(1000)
   energyUpdatedAt DateTime?
