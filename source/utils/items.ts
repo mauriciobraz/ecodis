@@ -99,29 +99,29 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 
 	[ItemSlug.Soy]: {
 		illegal: false,
-		growthTime: 3,
-		yield: 10,
+		growthTime: 4,
+		yield: 2,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
 
 	[ItemSlug.Wheat]: {
 		illegal: false,
 		growthTime: 4,
-		yield: 8,
+		yield: 3,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
 
 	[ItemSlug.Beans]: {
 		illegal: false,
 		growthTime: 5,
-		yield: 6,
+		yield: 2,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
 
 	[ItemSlug.Pumpkin]: {
 		illegal: false,
 		growthTime: 6,
-		yield: 4,
+		yield: 2,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
 
@@ -131,8 +131,6 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 		yield: 3,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
-
-	// TODO: CHANGE GROWTH TIME
 
 	[ItemSlug.Strawberry]: {
 		illegal: true,
