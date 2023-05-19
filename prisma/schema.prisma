@@ -169,6 +169,8 @@ model UserGuildData {
   /// }
   vaccinationData Json?
 
+  veterinaryData Json?
+
   /// type EmploymentData = {
   ///   type: EmployeeType;
   ///   amount: number;
