@@ -5,7 +5,7 @@ import '@sapphire/plugin-logger/register';
 import '@sapphire/plugin-subcommands/register';
 
 import Bree from 'bree';
-import { GatewayIntentBits } from 'discord.js';
+import { GatewayIntentBits, Partials } from 'discord.js';
 
 import { join } from 'path';
 import { CustomSapphireClient } from './sapphire';
@@ -18,8 +18,10 @@ const client = new CustomSapphireClient({
 	intents: [
 		GatewayIntentBits.Guilds,
 		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.MessageContent
+		GatewayIntentBits.MessageContent,
+		GatewayIntentBits.GuildMessageReactions
 	],
+	partials: [Partials.Reaction],
 	hmr: {
 		enabled: process.env.NODE_ENV === 'development'
 	},
@@ -31,11 +33,10 @@ const client = new CustomSapphireClient({
 
 const bree = new Bree({
 	root: join(__dirname, 'jobs'),
-	// logger: container.logger,
 	jobs: [
 		{
 			name: 'regenerations',
-			interval: 'every 120 seconds'
+			interval: 'every 5 seconds'
 		},
 		{
 			name: 'growthRate',

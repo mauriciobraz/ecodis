@@ -1,8 +1,10 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Precondition } from '@sapphire/framework';
+import { time } from 'discord.js';
 
 import type { PreconditionResult } from '@sapphire/framework';
 import type { CommandInteraction, ContextMenuCommandInteraction, Message } from 'discord.js';
+import { addMilliseconds } from 'date-fns';
 
 @ApplyOptions<Precondition.Options>({
 	name: 'NotArrested'
@@ -21,34 +23,52 @@ export class NotArrestedPrecondition extends Precondition {
 	}
 
 	private async handleNotArrested(userId: string, guildId: string) {
+		const guild = await this.container.database.guild.findUnique({
+			where: {
+				discordId: guildId
+			}
+		});
+
 		const user = await this.container.database.user.findUnique({
 			where: {
 				discordId: userId
-			},
-			select: {
-				guildPrisoners: {
-					where: {
-						guild: {
-							discordId: guildId
-						},
-						releasedAt: {
-							not: null
-						}
-					},
-					// We order by createdAt in descending order so we can get the latest
-					// prison this user is in, and then we take only one.
-					orderBy: { createdAt: 'desc' },
-					take: 1
+			}
+		});
+
+		if (!guild || !user) {
+			return this.error({
+				identifier: 'Unknown',
+				message: 'Ocorreu um erro desconhecido. Tenta novamente mais tarde.'
+			});
+		}
+
+		const isArrested = await this.container.database.userPrison.findUnique({
+			where: {
+				userId_guildId: {
+					guildId: guild.id,
+					userId: user.id
 				}
 			}
 		});
 
-		const isArrested = user?.guildPrisoners.length;
+		console.log({
+			isArrested,
+			all: await this.container.database.userPrison.findMany(),
+			userId_guildId: {
+				guildId: guild.id,
+				userId: user.id
+			}
+		});
 
 		if (isArrested) {
+			const remainingTime = isArrested.createdAt.getTime() + 86400000 - Date.now();
+
 			return this.error({
 				identifier: 'NotArrested',
-				message: 'Estás preso(a) e não podes usar este comando.'
+				message: `Você está preso(a) e não pode usar este comando. Você será solto(a) ${time(
+					addMilliseconds(new Date(), remainingTime),
+					'R'
+				)}.`
 			});
 		}
 

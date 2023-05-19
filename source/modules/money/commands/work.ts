@@ -58,7 +58,7 @@ export class WorkCommand extends Command {
 			const diffMs = now.getTime() - workedAt.getTime();
 			const diffMins = Math.floor(diffMs / 60000);
 
-			const cooldownMs = userGuildData.job.cooldown.getTime();
+			const cooldownMs = userGuildData.job.cooldown * 60000;
 			const cooldownMins = Math.floor(cooldownMs / 60000);
 
 			if (diffMins < cooldownMins) {

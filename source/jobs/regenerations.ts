@@ -25,15 +25,11 @@ async function main(): Promise<void> {
 async function regenerateArrests(prismaClient: PrismaClient) {
 	const now = new Date();
 
-	const affected = await prismaClient.userPrison.updateMany({
+	const affected = await prismaClient.userPrison.deleteMany({
 		where: {
-			releasedAt: null,
 			createdAt: {
 				lte: addMilliseconds(now, -ARREST_DURATION)
 			}
-		},
-		data: {
-			releasedAt: now
 		}
 	});
 

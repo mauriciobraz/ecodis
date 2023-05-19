@@ -80,7 +80,7 @@ model UserPrison {
   guild   Guild  @relation(fields: [guildId], references: [id])
   guildId String @db.ObjectId
 
-  releasedAt DateTime?
+  @@unique([userId, guildId])
 }
 
 model Job {
@@ -169,10 +169,10 @@ model UserGuildData {
   /// }
   vaccinationData Json?
 
-  // type EmploymentData = {
-  //   type: EmployeeType;
-  //   amount: number;
-  // }[]
+  /// type EmploymentData = {
+  ///   type: EmployeeType;
+  ///   amount: number;
+  /// }[]
   employmentData Json?
 
   inventory Inventory?
@@ -180,7 +180,8 @@ model UserGuildData {
   farm       Farm?
   greenhouse Greenhouse?
 
-  workedAt  DateTime?
+  workedAt DateTime?
+
   lastDaily DateTime?
 
   energy          Int       @default(1000)

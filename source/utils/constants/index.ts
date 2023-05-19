@@ -1,1 +1,1 @@
-export const ARREST_DURATION = 30_000;
+export const ARREST_DURATION = 86400000;

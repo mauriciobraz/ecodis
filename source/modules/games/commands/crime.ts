@@ -70,6 +70,7 @@ export class CrimeCommand extends Command {
 			await message.reply(
 				`Não tens energia suficiente para cometer um crime (custo: ${CRIME_ENERGY_COST}).`
 			);
+
 			return;
 		}
 
@@ -97,6 +98,7 @@ export class CrimeCommand extends Command {
 			await message.reply(
 				'Foste apanhado a cometer um crime e foste preso! Perdeste **100** de energia.'
 			);
+
 			return;
 		}
 
