@@ -508,26 +508,24 @@ export default class GreenhouseCommand extends Command {
 			}
 		}
 
-		if (seedInventoryItem.amount < emptyCells) {
-			await interaction.editReply({
-				content: `Você não tem sementes suficientes para plantar em todas as células vazias.`,
-				components: []
-			});
-
-			return;
-		}
+		let seedsPlanted = 0;
+		const seedsToPlant = Math.min(emptyCells, seedInventoryItem.amount);
 
 		const updatedPlantData = greenhouse.plantData.map((row) =>
-			row.map((cell) =>
-				cell
-					? cell
-					: ({
-							growthRate: 0,
-							itemId: seedId,
-							createdAt: new Date().toISOString(),
-							itemSlug: seedInventoryItem.item.slug
-					  } as PlantData)
-			)
+			row.map((cell) => {
+				if (!cell && seedsPlanted < seedsToPlant) {
+					seedsPlanted++;
+
+					return {
+						growthRate: 0,
+						itemId: seedId,
+						createdAt: new Date().toISOString(),
+						itemSlug: seedInventoryItem.item.slug
+					} as PlantData;
+				}
+
+				return cell;
+			})
 		);
 
 		await this.container.database.greenhouse.update({
