@@ -2,16 +2,18 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command, type Args } from '@sapphire/framework';
 
 import { JobType } from '@prisma/client';
-import type {
-	Collection,
-	Message,
-	MessageReaction,
-	ReactionCollector,
-	Snowflake,
-	User
+import {
+	time,
+	type Collection,
+	type Message,
+	type MessageReaction,
+	type ReactionCollector,
+	type Snowflake,
+	type User
 } from 'discord.js';
 import { DiscordJSUtils } from '../../../utils/discordjs';
 import { UserQueries } from '../../../utils/queries/user';
+import { ROBBERY_COOLDOWN } from '../../../utils/constants';
 
 @ApplyOptions<Command.Options>({
 	name: 'roubar',
@@ -20,6 +22,56 @@ import { UserQueries } from '../../../utils/queries/user';
 })
 export class RobCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
+		const guildDatabase = await this.container.database.guild.upsert({
+			where: { discordId: message.guildId },
+			create: { discordId: message.guildId },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const userDatabase = await this.container.database.user.upsert({
+			where: { discordId: message.author.id },
+			create: { discordId: message.author.id },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const userGuildData = await this.container.database.userGuildData.upsert({
+			where: {
+				userId_guildId: {
+					guildId: guildDatabase.id,
+					userId: userDatabase.id
+				}
+			},
+			create: {
+				userId: userDatabase.id,
+				guildId: guildDatabase.id
+			},
+			update: {},
+			select: {
+				id: true,
+				balance: true,
+				energy: true,
+				committedCrimeAt: true
+			}
+		});
+
+		const cooldownDate = userGuildData.committedCrimeAt
+			? new Date(userGuildData.committedCrimeAt.getTime() + ROBBERY_COOLDOWN)
+			: new Date(0);
+
+		if (cooldownDate > new Date()) {
+			await message.reply(
+				`Ainda estás a recuperar de um crime! Espera mais **${time(cooldownDate, 'R')}**.`
+			);
+
+			return;
+		}
+
 		const userResult = await args.pickResult('user');
 
 		if (userResult.isErr()) {
@@ -31,6 +83,15 @@ export class RobCommand extends Command {
 
 			return;
 		}
+
+		await this.container.database.userGuildData.update({
+			where: {
+				id: userGuildData.id
+			},
+			data: {
+				robbedAt: new Date()
+			}
+		});
 
 		const user = userResult.unwrap();
 

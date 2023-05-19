@@ -180,7 +180,9 @@ model UserGuildData {
   farm       Farm?
   greenhouse Greenhouse?
 
-  workedAt DateTime?
+  workedAt         DateTime?
+  robbedAt         DateTime?
+  committedCrimeAt DateTime?
 
   lastDaily DateTime?
 

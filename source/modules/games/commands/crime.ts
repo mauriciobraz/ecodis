@@ -3,7 +3,8 @@ import { Command } from '@sapphire/framework';
 
 import { calculatePrize } from '../utilities';
 
-import type { Message } from 'discord.js';
+import { time, type Message } from 'discord.js';
+import { CRIME_COOLDOWN } from '../../../utils/constants';
 
 const CRIME_ENERGY_COST = 100;
 const PERCENTAGE_TO_GET_CAUGHT = 0.05;
@@ -37,6 +38,7 @@ export class CrimeCommand extends Command {
 				id: true
 			}
 		});
+
 		const userGuildData = await this.container.database.userGuildData.upsert({
 			where: {
 				userId_guildId: {
@@ -62,7 +64,29 @@ export class CrimeCommand extends Command {
 			select: {
 				id: true,
 				balance: true,
-				energy: true
+				energy: true,
+				committedCrimeAt: true
+			}
+		});
+
+		const cooldownDate = userGuildData.committedCrimeAt
+			? new Date(userGuildData.committedCrimeAt.getTime() + CRIME_COOLDOWN)
+			: new Date(0);
+
+		if (cooldownDate > new Date()) {
+			await message.reply(
+				`Ainda estás a recuperar de um crime! Espera mais **${time(cooldownDate, 'R')}**.`
+			);
+
+			return;
+		}
+
+		await this.container.database.userGuildData.update({
+			where: {
+				id: userGuildData.id
+			},
+			data: {
+				committedCrimeAt: new Date()
 			}
 		});
 
