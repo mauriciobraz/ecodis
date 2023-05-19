@@ -169,6 +169,12 @@ model UserGuildData {
   /// }
   vaccinationData Json?
 
+  // type EmploymentData = {
+  //   type: EmployeeType;
+  //   amount: number;
+  // }[]
+  employmentData Json?
+
   inventory Inventory?
 
   farm       Farm?
