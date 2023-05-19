@@ -7,12 +7,11 @@ import { UserQueries } from '../../../utils/queries/user';
 import { millisecondsToHours } from 'date-fns';
 
 export enum Disease {
-	Covid19 = 'Covid19',
 	Asthma = 'Asthma',
 	Flu = 'Flu'
 }
 
-export const VACCINES = ['Covid19', 'Asthma', 'Flu'] as const;
+export const VACCINES = ['Asthma', 'Flu'] as const;
 
 export const VaccinationSchema = z.object({
 	/**
@@ -31,7 +30,7 @@ export const VaccinationSchema = z.object({
 export const VaccinationDoctorSchema = z.object({
 	/**
 	 * The vaccines that the user has.
-	 * @example [{ type: 'Covid19', amount: 1 }, { type: 'Flu', amount: 2 }]
+	 * @example [{ type: 'Asthma', amount: 1 }, { type: 'Flu', amount: 2 }]
 	 */
 	vaccines: z.array(
 		z.object({
@@ -54,7 +53,6 @@ export const VaccinationDataSchema = z.object({
 	 */
 	__doctor: VaccinationDoctorSchema.optional(),
 
-	Covid19: VaccinationSchema,
 	Asthma: VaccinationSchema,
 	Flu: VaccinationSchema
 });
@@ -63,7 +61,6 @@ export type Vaccination = z.infer<typeof VaccinationSchema>;
 export type VaccinationData = z.infer<typeof VaccinationDataSchema>;
 
 export const DEFAULT_VACCINATION_DATA: VaccinationData = {
-	Covid19: { immunizationTime: 1_620_000_000, infected: false },
 	Asthma: { immunizationTime: 1_620_000_000, infected: false },
 	Flu: { immunizationTime: 1_620_000_000, infected: false }
 };
@@ -128,19 +125,11 @@ export class InfoVacCommand extends Command {
 			vaccinationData = newVaccinationData;
 		}
 
-		const { Asthma, Covid19, Flu } = VaccinationDataSchema.parse(vaccinationData);
-
-		console.log({ Asthma, Covid19, Flu });
+		const { Asthma, Flu } = VaccinationDataSchema.parse(vaccinationData);
 
 		const embed = new EmbedBuilder()
 			.setTitle(`Carteirinha de vacinação de ${message.author.tag}`)
 			.addFields([
-				{
-					name: 'Covid-19',
-					value: `🕰 **Tempo de imunização**: ${millisecondsToHours(
-						Covid19.immunizationTime
-					)}h\n 🦠 **Está infectado(a)?**: ${Asthma.infected ? 'Sim' : 'Não'}\n\u200b`
-				},
 				{
 					name: 'Gripe',
 					value: `🕰 **Tempo de imunização**: ${millisecondsToHours(

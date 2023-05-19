@@ -24,7 +24,7 @@ export class PesquisarCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
 		const term = await args.pick('string');
 
-		if (!['covid', 'asma', 'gripe'].includes(term)) {
+		if (!['asma', 'gripe'].includes(term)) {
 			await message.reply(
 				'Termo de pesquisa inválido. Por favor, especifique um termo válido.'
 			);
@@ -90,7 +90,9 @@ export class PesquisarCommand extends Command {
 							...(__doctor?.vaccines ?? []),
 							{
 								type: term,
-								amount: 1
+								amount:
+									(__doctor?.vaccines?.find((vaccine) => vaccine.type === term)
+										?.amount ?? 0) + 1
 							}
 						]
 					}
@@ -98,7 +100,8 @@ export class PesquisarCommand extends Command {
 			}
 		});
 
-		// Lógica de pesquisa para os termos "covid", "asma" e "gripe"
-		await message.channel.send(`Pesquisando informações sobre ${term}...`);
+		await message.channel.send(
+			`Pesquisa realizada com sucesso. Você conseguiu fabricar mais uma dose de vacina contra **${term}**.`
+		);
 	}
 }
