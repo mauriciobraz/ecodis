@@ -12,12 +12,10 @@ import {
 	type RepliableInteraction
 } from 'discord.js';
 
-import type { ChatInputCommandInteraction } from 'discord.js';
-import { ZodParsers, getItemId } from '../../../utils/items';
-import type { ItemSlug } from '../../../utils/items';
 import dedent from 'ts-dedent';
-
-type CachedInGuild = 'cached' | 'raw';
+import type { z } from 'zod';
+import type { ItemSlug } from '../../../utils/items';
+import { ZodParsers, getItemId } from '../../../utils/items';
 
 enum MineItem {
 	Sapphire = 'Sapphire',
@@ -37,6 +35,17 @@ const MineItemEmoji = {
 	[MineItem.Ruby]: '<:ruby:1105483530672279592>'
 };
 
+const MineFakeItemEmoji = {
+	[MineItem.Sapphire]: '<:sapphire_fake:1109120121164812369>',
+	[MineItem.Amethyst]: '<:amethyst_fake:1109120114265182239>',
+	[MineItem.Emerald]: '<:emerald_fake:1109120115892572191>',
+	[MineItem.Ruby]: '<:ruby_fake:1109120118623051917>',
+
+	// This is in case the user mines a stone and for some reason it's marked as a fake item.
+	[MineItem.Diamond]: '<a:diamond:1105483643863969822>',
+	[MineItem.Stone]: '<:invisible:1105675442813403137>'
+};
+
 const MineItemProbability = {
 	[MineItem.Sapphire]: /* 10% */ 0.1,
 	[MineItem.Amethyst]: /* 30% */ 0.3,
@@ -47,6 +56,7 @@ const MineItemProbability = {
 
 interface GridItem {
 	item: MineItem;
+	isFake?: boolean;
 }
 
 type Grid = GridItem[][];
@@ -63,11 +73,25 @@ interface GenerateGridOptions {
 	 * @default 1
 	 */
 	maxItems: number;
+
+	/**
+	 * Percentages of each item to be in the grid.
+	 * @default {}
+	 */
+	percentages?: { [key in MineItem]: number };
 }
 
 const DEFAULT_GENERATE_GRID_OPTIONS: GenerateGridOptions = {
 	gridSize: 3,
-	maxItems: 1
+	maxItems: 1,
+	percentages: {
+		Amethyst: 0.3,
+		Diamond: 0.005,
+		Emerald: 0.05,
+		Ruby: 0.2,
+		Sapphire: 0.1,
+		Stone: 0.0
+	}
 };
 
 /** There is a limit of 5x5 for the grid size because of Discord's limitations. */
@@ -100,14 +124,88 @@ export class MineCommand extends Command {
 	}
 
 	public override async messageRun(message: Message<boolean>) {
-		await MineCommand.start(message);
+		const pickaxe = await MineCommand.getUserPickaxe(message.author.id);
+
+		if (!pickaxe) {
+			const missingPickaxeContent =
+				'Você não tem uma picareta para minerar! Compre uma na loja.';
+
+			await message.reply({
+				content: missingPickaxeContent
+			});
+
+			return;
+		}
+
+		let messageToEdit: Message | null = null;
+
+		if (pickaxe.durability <= 0) {
+			const brokenPickaxeContent = 'Sua picareta está quebrada! Compre uma nova na loja.';
+
+			await message.reply({
+				content: brokenPickaxeContent
+			});
+
+			return;
+		}
+
+		let status = 'Continue';
+
+		while (pickaxe.durability > 0 && status === 'Continue') {
+			const result = await MineCommand.start(
+				message,
+				pickaxe,
+				pickaxe.durability - 1,
+				messageToEdit
+			);
+
+			pickaxe.durability--;
+			messageToEdit ??= result.message;
+			status = result.status;
+
+			switch (result.status) {
+				case 'Continue':
+					continue;
+
+				case 'Lost':
+					break;
+
+				case 'Timeout':
+					break;
+
+				default:
+					throw new Error('Unexpected: The result is not valid.');
+			}
+		}
+
+		switch (status) {
+			case 'Lost':
+				await messageToEdit?.edit({
+					content: 'Você perdeu! Mais sorte na próxima vez!',
+					components: []
+				});
+
+				break;
+
+			case 'Timeout':
+				await messageToEdit?.edit({
+					content: 'A partida foi cancelada por inatividade!',
+					components: []
+				});
+
+				break;
+
+			default:
+				throw new Error('Unexpected: The result is not valid.');
+		}
 	}
 
-	public override async chatInputRun(interaction: ChatInputCommandInteraction<CachedInGuild>) {
-		await MineCommand.start(interaction);
-	}
-
-	public static async start(interactionOrMessage: RepliableInteraction | Message) {
+	public static async start(
+		interactionOrMessage: RepliableInteraction | Message,
+		pickaxe: z.infer<typeof ZodParsers.UserPickaxe> & { inventoryItemId: string },
+		currentRound = 0,
+		messageToEdit: Message | null = null
+	) {
 		if (!interactionOrMessage.channelId) {
 			throw new Error('Unexpected: The channel was not cached nor could be fetched.');
 		}
@@ -119,60 +217,43 @@ export class MineCommand extends Command {
 				? interactionOrMessage.author.id
 				: interactionOrMessage.user.id;
 
-		const pickaxe = await MineCommand.getUserPickaxe(userId);
+		const gridSize = 3;
 
-		if (!pickaxe) {
-			const missingPickaxeContent =
-				'Você não tem uma picareta para minerar! Compre uma na loja.';
+		const maxItems = Math.max(0, Math.min(Math.floor(Math.random() * (gridSize ** 2 + 1)), 4));
 
-			if (interactionOrMessage instanceof Message)
-				await interactionOrMessage.reply({
-					content: missingPickaxeContent
-				});
-			else
-				await interactionOrMessage.reply({
-					content: missingPickaxeContent,
-					ephemeral: true
-				});
+		const grid = MineCommand.generateGrid({
+			gridSize,
+			maxItems
+		});
 
-			return;
-		}
-
-		if (pickaxe.durability <= 0) {
-			const brokenPickaxeContent = 'Sua picareta está quebrada! Compre uma nova na loja.';
-
-			if (interactionOrMessage instanceof Message)
-				await interactionOrMessage.reply({
-					content: brokenPickaxeContent
-				});
-			else
-				await interactionOrMessage.reply({
-					content: brokenPickaxeContent,
-					ephemeral: true
-				});
-
-			return;
-		}
-
-		const grid = MineCommand.generateGrid();
 		const gridComponents = MineCommand.parseGridToDiscordComponents(grid);
 
-		const gameEndsAt = time(addMilliseconds(new Date(), RESPONSE_TIMEOUT), 'R');
+		const gameEndsAt = time(addMilliseconds(new Date(), RESPONSE_TIMEOUT * currentRound), 'R');
 		const gameStartedContent = `Esta partida acabará ${gameEndsAt} (durabilidade da picareta: ${pickaxe.durability})`;
 
 		let message: Message | null = null;
 
-		if (interactionOrMessage instanceof Message)
-			message = await interactionOrMessage.reply({
+		if (interactionOrMessage instanceof Message) {
+			if (messageToEdit) {
+				message = await messageToEdit.edit({
+					components: gridComponents,
+					content: gameStartedContent
+				});
+			} else {
+				message = await interactionOrMessage.reply({
+					components: gridComponents,
+					content: gameStartedContent
+				});
+			}
+		} else {
+			if (!interactionOrMessage.deferred)
+				await interactionOrMessage.deferReply({ ephemeral: true });
+
+			await interactionOrMessage.editReply({
 				components: gridComponents,
 				content: gameStartedContent
 			});
-		else
-			await interactionOrMessage.reply({
-				components: gridComponents,
-				content: gameStartedContent,
-				ephemeral: true
-			});
+		}
 
 		const channel =
 			interactionOrMessage.channel ??
@@ -195,22 +276,7 @@ export class MineCommand extends Command {
 		);
 
 		if (collectorResult.isErr()) {
-			const timeoutContent = 'A partida foi cancelada por inatividade!';
-
-			if (interactionOrMessage instanceof Message) {
-				if (!message) throw new Error('Message was not cached on message command context.');
-
-				await message.edit({
-					content: timeoutContent,
-					components: []
-				});
-			} else
-				await interactionOrMessage.editReply({
-					content: timeoutContent,
-					components: []
-				});
-
-			return;
+			return { status: 'Timeout', message };
 		}
 
 		const componentInteraction = collectorResult.unwrap();
@@ -222,42 +288,26 @@ export class MineCommand extends Command {
 			throw new Error('Unexpected: The button was out of bounds.');
 		}
 
-		// FIXME: There is something wrong with this function.
+		await componentInteraction.deferUpdate();
 		await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
+
+		if (grid[x][y].isFake || grid[x][y].item === MineItem.Stone) {
+			return { status: 'Lost', message };
+		}
 
 		await MineCommand.handleItemFound(item as ItemSlug, userId, interactionOrMessage.guildId!);
 
 		if (item === MineItem.Stone) {
-			const lostContent = 'Você perdeu! Mais sorte na próxima vez!';
-
-			if (interactionOrMessage instanceof Message) {
-				if (!message) throw new Error('Message was not cached on message command context.');
-
-				await message.edit({
-					content: lostContent,
-					components: []
-				});
-			} else
-				await interactionOrMessage.editReply({
-					content: lostContent,
-					components: []
-				});
+			return {
+				status: 'Lost',
+				message
+			};
 		}
 
-		const wonContent = `Você encontrou um(a) ${item}!`;
-
-		if (interactionOrMessage instanceof Message) {
-			if (!message) throw new Error('Message was not cached on message command context.');
-
-			await message.edit({
-				content: wonContent,
-				components: []
-			});
-		} else
-			await interactionOrMessage.editReply({
-				content: wonContent,
-				components: []
-			});
+		return {
+			status: 'Continue',
+			message
+		};
 	}
 
 	/**
@@ -432,11 +482,16 @@ export class MineCommand extends Command {
 
 		return grid.map((row, x) =>
 			new ActionRowBuilder<ButtonBuilder>().addComponents(
-				row.map(({ item }, y) =>
+				row.map(({ item, isFake }, y) =>
 					new ButtonBuilder()
 						.setCustomId(`MINE&${item}&${x}&${y}`)
-						.setStyle(ButtonStyle.Secondary)
-						.setEmoji(MineItemEmoji[item])
+						// .setStyle(ButtonStyle.Secondary)
+						.setStyle(
+							!isFake && item !== MineItem.Stone
+								? ButtonStyle.Primary
+								: ButtonStyle.Secondary
+						)
+						.setEmoji(isFake ? MineFakeItemEmoji[item] : MineItemEmoji[item])
 				)
 			)
 		);
@@ -452,14 +507,34 @@ export class MineCommand extends Command {
 			throw new Error(`The grid size cannot be bigger than ${MAX_GRID_SIZE}.`);
 		}
 
-		const oresGrids = Array.from({ length: options.maxItems }, () => ({
+		// Create one true ore
+		const trueOre = {
 			x: Math.floor(Math.random() * options.gridSize),
 			y: Math.floor(Math.random() * options.gridSize)
-		}));
+		};
+
+		let fakeOresCount = 0;
+
+		const maxFakeOresCount = Math.min(3, Math.floor(options.gridSize ** 2 * 0.4));
+		const fakeOres: { x: number; y: number }[] = [];
+
+		// Generate random fake ores
+		while (fakeOresCount < maxFakeOresCount) {
+			const fakeOre = {
+				x: Math.floor(Math.random() * options.gridSize),
+				y: Math.floor(Math.random() * options.gridSize)
+			};
+
+			// Make sure that the fake ore is not in the same position as the true ore
+			if (fakeOre.x !== trueOre.x || fakeOre.y !== trueOre.y) {
+				fakeOres.push(fakeOre);
+				fakeOresCount++;
+			}
+		}
 
 		return Array.from({ length: options.gridSize }, (_, x) =>
-			Array.from({ length: options.gridSize }, (_, y) => {
-				if (oresGrids.some((ore) => ore.x === x && ore.y === y)) {
+			Array.from({ length: options.gridSize }, (_, y): GridItem => {
+				if (trueOre.x === x && trueOre.y === y) {
 					return {
 						item: MineCommand.pickRandom(
 							Object.values(
@@ -470,12 +545,31 @@ export class MineCommand extends Command {
 								)
 							),
 							Object.values(MineItemProbability)
-						)
+						),
+						isFake: false
+					};
+				}
+
+				if (fakeOres.some((ore) => ore.x === x && ore.y === y)) {
+					return {
+						item: MineCommand.pickRandom(
+							Object.values(
+								Object.fromEntries(
+									Object.entries(MineItem).filter(
+										([_, item]) =>
+											item !== MineItem.Stone && item !== MineItem.Diamond
+									)
+								)
+							),
+							Object.values(MineItemProbability)
+						),
+						isFake: true
 					};
 				}
 
 				return {
-					item: MineItem.Stone
+					item: MineItem.Stone,
+					isFake: false
 				};
 			})
 		);
