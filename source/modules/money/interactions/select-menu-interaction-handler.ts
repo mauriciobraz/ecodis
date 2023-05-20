@@ -1,3 +1,4 @@
+import type { AnimalType } from '@prisma/client';
 import { ItemType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { InteractionHandler, InteractionHandlerTypes, Result } from '@sapphire/framework';
@@ -161,8 +162,9 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		await selection.deferUpdate();
 
 		let selectedId;
-		let selectedSlug;
 		let selectedData;
+		let selectedSlug;
+		let selectedType: 'Animal' | ItemType;
 
 		let selectedName;
 		let selectedPrice;
@@ -183,6 +185,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 			selectedId = selectedAnimal.id;
 			selectedSlug = selectedAnimal.type;
+			selectedType = 'Animal';
 
 			selectedName = selectedAnimal.name;
 			selectedPrice = selectedAnimal.price;
@@ -199,6 +202,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 			selectedId = selectedItem.id;
 			selectedSlug = selectedItem.slug;
+			selectedType = selectedItem.type;
 
 			selectedName = selectedItem.name;
 			selectedPrice = selectedItem.price;
@@ -211,7 +215,8 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			const quantitySelectMenu = this.buildQuantitySelectMenu(
 				`QUANTITY:${interaction.id}`,
 				selectedPrice,
-				selectedPriceInDiamonds
+				selectedPriceInDiamonds,
+				[ItemType.Farm, ItemType.Ore].includes(selectedType)
 			);
 
 			const quantitySelectMenuActionRow =
@@ -308,7 +313,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 			if (!amountOfItem) {
 				await interaction.editReply({
-					content: `Você não tem nenhum item **${selectedName}**. Este é um erro de programação, por favor, reporte-o no servidor de suporte.`,
+					content: `Você não tem nenhum item **${selectedName}** para vender!`,
 					components: []
 				});
 
@@ -395,7 +400,8 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 	private buildQuantitySelectMenu(
 		customId: string,
 		singlePrice: number,
-		priceInDiamonds: boolean
+		priceInDiamonds: boolean,
+		showSellAllButton: boolean
 	) {
 		const AMOUNTS = [1, 3, 6, 9];
 
@@ -403,15 +409,19 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			.setCustomId(customId)
 			.setPlaceholder('Selecione uma quantidade desejada')
 			.addOptions([
-				new StringSelectMenuOptionBuilder()
-					.setEmoji('🛒')
-					.setValue('SELL_ALL')
-					.setLabel('Vender tudo')
-					.setDescription(
-						`→ Você venderá todos os seus itens e receberá em ${
-							priceInDiamonds ? '💎' : '💰'
-						}.`
-					),
+				...(showSellAllButton
+					? [
+							new StringSelectMenuOptionBuilder()
+								.setEmoji('🛒')
+								.setValue('SELL_ALL')
+								.setLabel('Vender tudo')
+								.setDescription(
+									`→ Você venderá todos os seus itens e receberá em ${
+										priceInDiamonds ? '💎' : '💰'
+									}.`
+								)
+					  ]
+					: []),
 				...AMOUNTS.map((amount) =>
 					new StringSelectMenuOptionBuilder()
 						.setValue(`${amount}`)
