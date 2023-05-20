@@ -45,7 +45,7 @@ export class WithdrawCommand extends Command {
 			guildId: message.guildId
 		});
 
-		const withdrawAmount = amount === 'tudo' ? balance : numberAmount;
+		const withdrawAmount = ['tudo', 'all'].includes(amount) ? balance : numberAmount;
 
 		if (
 			amount !== 'tudo' &&
@@ -67,7 +67,9 @@ export class WithdrawCommand extends Command {
 		});
 
 		await message.reply({
-			content: `Você sacou ${numberAmount} moedas! Seu saldo agora é ${updatedBalance} e seu saldo no banco é ${updatedBankBalance}.`
+			content: `Você sacou ${
+				typeof numberAmount === 'number' ? numberAmount : 'todas'
+			} moedas! Seu saldo agora é ${updatedBalance} e seu saldo no banco é ${updatedBankBalance}.`
 		});
 	}
 }

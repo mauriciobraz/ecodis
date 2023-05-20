@@ -29,7 +29,7 @@ export class EatCommand extends Command {
 		const consumables = await this.container.database.inventoryItem.findMany({
 			where: {
 				item: {
-					type: ItemType.Consumable
+					type: ItemType.Food
 				},
 				inventory: {
 					user: {

@@ -44,7 +44,7 @@ export class DepositCommand extends Command {
 		const { balanceInBank } = userBalances;
 
 		if (
-			amount !== 'tudo' &&
+			['tudo', 'all'].includes(amount) &&
 			(balanceInBank === 0 || balanceInBank < numberAmount) &&
 			userBalances.balance < numberAmount
 		) {
@@ -55,7 +55,17 @@ export class DepositCommand extends Command {
 			return;
 		}
 
-		const depositAmount = amount === 'tudo' ? userBalances.balance : numberAmount;
+		const depositAmount = ['tudo', 'all'].includes(amount)
+			? userBalances.balance
+			: numberAmount;
+
+		if (isNaN(depositAmount)) {
+			await message.reply({
+				content: 'Você precisa especificar um valor válido para depositar.'
+			});
+
+			return;
+		}
 
 		await UserQueries.updateBalance({
 			userId: message.author.id,

@@ -14,6 +14,7 @@ import {
 	PurchasedAreaSchema as GreenhousePurchasedAreaSchema
 } from '../utils/greenhouse';
 import { DEFAULT_ITEM_DATA, ZodParsers } from '../utils/items';
+import { EmployeeType, EmploymentDataSchema } from '../modules/others/commands/office';
 
 async function main(): Promise<void> {
 	const prismaClient = new PrismaClient();
@@ -38,6 +39,17 @@ async function updateFarmItemGrowth(prismaClient: PrismaClient) {
 			purchasedArea: {
 				not: undefined
 			}
+		},
+		select: {
+			userGuildData: {
+				select: {
+					employmentData: true
+				}
+			},
+			id: true,
+			plantData: true,
+			purchasedArea: true,
+			userGuildDataId: true
 		}
 	});
 
@@ -108,8 +120,31 @@ async function updateFarmItemGrowth(prismaClient: PrismaClient) {
 					if (cell.growthRate === 100) {
 						const user = await prismaClient.userGuildData.findUnique({
 							where: { id: farm.userGuildDataId },
-							select: { inventory: { select: { id: true } } }
+							select: {
+								inventory: { select: { id: true } },
+								employmentData: true
+							}
 						});
+
+						if (
+							typeof user?.employmentData !== 'object' &&
+							!Array.isArray(user?.employmentData)
+						) {
+							continue;
+						}
+
+						const parsedEmployment = EmploymentDataSchema.safeParse(
+							user?.employmentData
+						);
+
+						if (
+							!parsedEmployment.success ||
+							!parsedEmployment.data.some(
+								(employee) => employee?.type === EmployeeType.Harvester
+							)
+						) {
+							continue;
+						}
 
 						if (user?.inventory) {
 							const inventoryItem = await prismaClient.inventoryItem.findFirst({

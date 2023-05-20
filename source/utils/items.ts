@@ -385,7 +385,7 @@ export async function createItemsIfNotExists() {
 		},
 		create: {
 			slug: ItemSlug.Egg,
-			type: ItemType.Consumable,
+			type: ItemType.Food,
 
 			emoji: '🥚',
 			price: 300,
