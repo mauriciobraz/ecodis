@@ -1,6 +1,6 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command, Result } from '@sapphire/framework';
-import { createCanvas } from 'canvas';
+import { createCanvas, loadImage } from 'canvas';
 import {
 	ActionRowBuilder,
 	ComponentType,
@@ -21,9 +21,10 @@ import {
 import { ItemSlug } from '../../../utils/items';
 import { ShopQueries } from '../../../utils/queries/shop';
 
-import type { Animal, Farm, FarmAnimal, Item } from '@prisma/client';
+import { AnimalType, type Animal, type Farm, type FarmAnimal, type Item } from '@prisma/client';
 import type { StringSelectMenuInteraction } from 'discord.js';
 import type { z } from 'zod';
+import { resolveToAssetPath } from '../../../utils/fs-utils';
 
 export const DEFAULT_PURCHASED_AREA: PurchasedArea = [
 	[true, false, false],
@@ -36,14 +37,6 @@ export const DEFAULT_PLANT_DATA_GRID: PlantDataGrid = [
 	[null, null, null],
 	[null, null, null]
 ];
-
-const PLANT_COLORS = {
-	[ItemSlug.Soy]: '#8BC34A',
-	[ItemSlug.Wheat]: '#FFEB3B',
-	[ItemSlug.Beans]: '#4CAF50',
-	[ItemSlug.Pumpkin]: '#FF9800',
-	[ItemSlug.Cannabis]: '#4CAF50'
-};
 
 const CUSTOM_IDS = {
 	FARM_CONTROL_SELECT_MENU: 'FARM:MENU',
@@ -73,6 +66,18 @@ type FarmWithAnimals = Farm & {
 		};
 	})[];
 };
+
+const SEEDS_POSITIONS = [
+	[87, 255.15],
+	[368.55, 202.65],
+	[604.8, 115.5],
+	[208.95, 381.15],
+	[511.35, 288.75],
+	[758.1, 172.2],
+	[339.15, 483],
+	[641.55, 380.1],
+	[943.95, 255.15]
+];
 
 @ApplyOptions<Command.Options>({
 	name: 'fazenda',
@@ -128,21 +133,12 @@ export default class FarmCommand extends Command {
 
 			const farm = farmResult.unwrap() as FarmWithAnimals;
 
-			const farmImage = this.generateFarmImage(farm);
+			const farmImage = await this.generateFarmImage(farm);
 			const controlsSelectMenu = this.createControlsSelectMenu(farm.plantData);
 
 			if (!msg) {
 				msg = await message.reply({
-					content: `**Fazenda de ${message.author.username}**\n\nAnimais: ${
-						farm.farmAnimals.length > 0
-							? farm.farmAnimals
-									.map(
-										(farmAnimal) =>
-											`${farmAnimal.animal?.emoji} ${farmAnimal.animal?.name}`
-									)
-									.join(', ')
-							: 'Nenhum'
-					}`,
+					content: `**Fazenda de ${message.author.username}**`,
 					components: [controlsSelectMenu],
 					files: [farmImage]
 				});
@@ -189,20 +185,11 @@ export default class FarmCommand extends Command {
 
 			// Update the farm with the new image.
 			await msg.edit({
-				content: `**Fazenda de ${message.author.username}**\n\nAnimais: ${
-					farm.farmAnimals.length > 0
-						? farm.farmAnimals
-								.map(
-									(farmAnimal) =>
-										`${farmAnimal.animal?.emoji} ${farmAnimal.animal?.name}`
-								)
-								.join(', ')
-						: 'Nenhum'
-				}`,
+				content: `**Fazenda de ${message.author.username}**`,
 				components: [controlsSelectMenu],
 				...(newPlantData && {
 					files: [
-						this.generateFarmImage({
+						await this.generateFarmImage({
 							...farm,
 							plantData: newPlantData
 						})
@@ -318,80 +305,86 @@ export default class FarmCommand extends Command {
 	 * @param plantData Data to generate image from.
 	 * @returns Buffer of the generated image.
 	 */
-	private generateFarmImage(farm: FarmWithAnimals): Buffer {
-		const canvasWidth = 400;
-		const canvasHeight = 300;
+	private async generateFarmImage(farm: FarmWithAnimals): Promise<Buffer> {
+		// create a canvas
+		const canvas = createCanvas(1860, 1056);
+		const context = canvas.getContext('2d');
 
-		const canvas = createCanvas(canvasWidth, canvasHeight);
-		const ctx = canvas.getContext('2d');
+		// draw images to canvas
+		context.drawImage(this.container.canvasImages.base, 0, 0, 1860, 1056); // adjust size and position as needed
+		context.drawImage(this.container.canvasImages.baseLayers[0], 0, 0, 1860, 1056); // adjust size and position as needed
 
-		// Draw background (you can use a custom image or fill with color)
-		ctx.fillStyle = '#d3ebd3';
-		ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+		// Draw the horse
 
-		// Draw farm grid and plants
-		const gridWidth = farm.plantData[0].length;
-		const gridHeight = farm.plantData.length;
+		if (farm.farmAnimals.some((farmAnimal) => farmAnimal.animal?.type === AnimalType.Horse)) {
+			const horseImage = await loadImage(resolveToAssetPath('farm', 'animals', 'horse.png'));
+			context.drawImage(horseImage, 0, 0, 1860, 1056);
+		}
 
-		const cellWidth = canvasWidth / gridWidth;
-		const cellHeight = canvasHeight / gridHeight;
+		context.drawImage(this.container.canvasImages.baseLayers[1], 0, 0, 1860, 1056);
 
-		for (let y = 0; y < gridHeight; y++) {
-			for (let x = 0; x < gridWidth; x++) {
-				// Draw grid cell
-				ctx.strokeStyle = 'white';
-				ctx.strokeRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+		if (farm.farmAnimals.some((farmAnimal) => farmAnimal.animal?.type === AnimalType.Chicken)) {
+			const chickenImage = await loadImage(
+				resolveToAssetPath('farm', 'animals', 'chicken.png')
+			);
 
-				// Draw plant if there is one
-				const plant = farm.plantData[y][x];
+			context.drawImage(chickenImage, 0, 0, 1860, 1056);
+		}
 
-				if (plant) {
-					const plantColor = PLANT_COLORS[plant.itemSlug];
+		if (farm.farmAnimals.some((farmAnimal) => farmAnimal.animal?.type === AnimalType.Rabbit)) {
+			const rabbitImage = await loadImage(
+				resolveToAssetPath('farm', 'animals', 'rabbit.png')
+			);
 
-					const plantWidth = (cellWidth * plant.growthRate) / 100;
-					const plantHeight = (cellHeight * plant.growthRate) / 100;
+			context.drawImage(rabbitImage, 0, 0, 1860, 1056);
+		}
 
-					const offsetX = (cellWidth - plantWidth) / 2;
-					const offsetY = (cellHeight - plantHeight) / 2;
+		// eslint-disable-next-line @typescript-eslint/prefer-for-of
+		for (let y = 0; y < farm.plantData.length; y++) {
+			// eslint-disable-next-line @typescript-eslint/prefer-for-of
+			for (let x = 0; x < farm.plantData[y].length; x++) {
+				const cell = farm.plantData[y][x];
 
-					// Set plant color and opacity based on growth rate
-					ctx.fillStyle = plantColor;
-					ctx.globalAlpha = plant.growthRate / 100;
-
-					// Draw plant
-					ctx.fillRect(
-						x * cellWidth + offsetX,
-						y * cellHeight + offsetY,
-						plantWidth,
-						plantHeight
-					);
-
-					// Reset global alpha
-					ctx.globalAlpha = 1;
-
-					// Draw growth percentage
-					ctx.fillStyle = 'black';
-					ctx.font = '14px Arial';
-					ctx.fillText(
-						`${plant.growthRate.toFixed(0)}% (${plant.itemSlug})`,
-						x * cellWidth + 5,
-						y * cellHeight + cellHeight - 5
-					);
-				} else {
-					// Draw "NONE" when plant data is null
-					ctx.fillStyle = 'black';
-					ctx.font = '14px Arial';
-					ctx.fillText(`NONE`, x * cellWidth + 5, y * cellHeight + cellHeight - 5);
-
-					// Draw default gray color for empty cell
-					ctx.fillStyle = '#D4D4D4';
-					ctx.globalAlpha = 0.5;
-					ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
-
-					// Reset global alpha
-					ctx.globalAlpha = 1;
+				if (!cell) {
+					continue;
 				}
+
+				const stage = Math.floor(cell.growthRate / 33.33333333333333);
+
+				const plantX = SEEDS_POSITIONS[y * farm.plantData[y].length + x][0];
+				const plantY = SEEDS_POSITIONS[y * farm.plantData[y].length + x][1];
+
+				const plantImage = {
+					[ItemSlug.Beans]: this.container.canvasImages.plants.Beans[stage],
+					[ItemSlug.Cannabis]: this.container.canvasImages.plants.Cannabis[stage],
+					[ItemSlug.Pumpkin]: this.container.canvasImages.plants.Pumpkin[stage],
+					[ItemSlug.Wheat]: this.container.canvasImages.plants.Wheat[stage]
+				}[cell.itemSlug];
+
+				if (!plantImage) {
+					continue;
+				}
+
+				context.drawImage(plantImage, plantX, plantY);
 			}
+		}
+
+		// Numeração das sementes
+		for (let i = 0; i < SEEDS_POSITIONS.length; i++) {
+			const plantX = SEEDS_POSITIONS[i][0];
+			const plantY = SEEDS_POSITIONS[i][1];
+
+			context.font = '62px sans-serif bold';
+			context.textAlign = 'center';
+			context.lineWidth = 32;
+			context.fillStyle = 'white';
+			context.shadowColor = 'black';
+			context.shadowBlur = 4;
+
+			context.fillText(`${i + 1}`, plantX + 10, plantY + 40);
+
+			context.shadowColor = 'transparent';
+			context.shadowBlur = 0;
 		}
 
 		return canvas.toBuffer();

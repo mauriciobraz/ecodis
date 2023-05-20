@@ -485,12 +485,7 @@ export class MineCommand extends Command {
 				row.map(({ item, isFake }, y) =>
 					new ButtonBuilder()
 						.setCustomId(`MINE&${item}&${x}&${y}`)
-						// .setStyle(ButtonStyle.Secondary)
-						.setStyle(
-							!isFake && item !== MineItem.Stone
-								? ButtonStyle.Primary
-								: ButtonStyle.Secondary
-						)
+						.setStyle(ButtonStyle.Secondary)
 						.setEmoji(isFake ? MineFakeItemEmoji[item] : MineItemEmoji[item])
 				)
 			)

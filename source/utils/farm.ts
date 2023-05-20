@@ -2,12 +2,13 @@ import { z } from 'zod';
 import { ItemSlug } from './items';
 
 export const SEEDS_SLUGS = [
-	ItemSlug.Soy,
 	ItemSlug.Wheat,
 	ItemSlug.Beans,
 	ItemSlug.Pumpkin,
 	ItemSlug.Cannabis
 ] as const;
+
+export type SeedSlug = (typeof SEEDS_SLUGS)[number];
 
 /**
  * DEFAULT_FARM_DIMENSION represents the default size (width and height) of the farm grid.

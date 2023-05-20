@@ -19,7 +19,7 @@ const ALLOWED_ITEMS = [
 	ItemSlug.Cafe,
 	ItemSlug.RedBull,
 	ItemSlug.Egg,
-	ItemSlug.Soy,
+
 	ItemSlug.Wheat,
 	ItemSlug.Beans,
 	ItemSlug.Pumpkin,

@@ -20,7 +20,6 @@ export enum ItemSlug {
 
 	Egg = 'Egg',
 
-	Soy = 'Soy',
 	Wheat = 'Wheat',
 	Beans = 'Beans',
 	Pumpkin = 'Pumpkin',
@@ -96,13 +95,6 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 	// Seeds
 	// Seeds
 	// Seeds
-
-	[ItemSlug.Soy]: {
-		illegal: false,
-		growthTime: 4,
-		yield: 2,
-		diseases: []
-	} as z.infer<typeof ZodParsers.Seed>,
 
 	[ItemSlug.Wheat]: {
 		illegal: false,
@@ -401,25 +393,6 @@ export async function createItemsIfNotExists() {
 	// Seeds
 	// Seeds
 	// Seeds
-
-	await container.database.item.upsert({
-		where: {
-			slug: ItemSlug.Soy
-		},
-		create: {
-			slug: ItemSlug.Soy,
-			type: ItemType.Farm,
-
-			emoji: '🌱',
-			price: 10,
-
-			name: 'Soja',
-			description: 'Sementes de soja para plantar.',
-
-			data: DEFAULT_ITEM_DATA[ItemSlug.Soy]
-		},
-		update: {}
-	});
 
 	await container.database.item.upsert({
 		where: {
