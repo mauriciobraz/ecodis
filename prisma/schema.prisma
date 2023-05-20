@@ -184,6 +184,7 @@ model UserGuildData {
 
   workedAt         DateTime?
   robbedAt         DateTime?
+  robbedFarmAt     DateTime?
   committedCrimeAt DateTime?
 
   lastDaily   DateTime?
