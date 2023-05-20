@@ -232,80 +232,40 @@ export default class GreenhouseCommand extends Command {
 	 * @param plantData Data to generate image from.
 	 * @returns Buffer of the generated image.
 	 */
-	private generateGreenhouseImage(plantData: PlantDataGrid): Buffer {
-		const canvasWidth = 400;
-		const canvasHeight = 300;
-
-		const canvas = createCanvas(canvasWidth, canvasHeight);
+	private generateGreenhouseImage(plantData: PlantDataGrid) {
+		// W1860 H1056
+		const canvas = createCanvas(1860, 1056);
 		const ctx = canvas.getContext('2d');
 
-		// Draw background (you can use a custom image or fill with color)
-		ctx.fillStyle = '#cebfff';
-		ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+		// Draw the base image
+		ctx.drawImage(this.container.canvasGreenhouseImages.base, 0, 0);
 
-		// Draw greenhouse grid and plants
-		const gridWidth = plantData[0].length;
-		const gridHeight = plantData.length;
+		// Draw the plants
+		for (let y = 0; y < plantData.length; y++) {
+			for (let x = 0; x < plantData[y].length; x++) {
+				const cell = plantData[y][x];
 
-		const cellWidth = canvasWidth / gridWidth;
-		const cellHeight = canvasHeight / gridHeight;
+				const stage = cell?.growthRate ? Math.min(Math.floor(cell.growthRate / 50), 2) : 0;
 
-		for (let y = 0; y < gridHeight; y++) {
-			for (let x = 0; x < gridWidth; x++) {
-				// Draw grid cell
-				ctx.strokeStyle = 'white';
-				ctx.strokeRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+				// eslint-disable-next-line no-negated-condition
+				const plantImage = !cell
+					? this.container.canvasGreenhouseImages.pot
+					: cell.itemSlug === ItemSlug.Strawberry
+					? stage === 2
+						? this.container.canvasGreenhouseImages.potStrawberryStage1
+						: this.container.canvasGreenhouseImages.potStrawberryStage2
+					: stage === 2
+					? this.container.canvasGreenhouseImages.potTomatoStage1
+					: this.container.canvasGreenhouseImages.potTomatoStage2;
 
-				// Draw plant if there is one
-				const plant = plantData[y][x];
-				if (plant) {
-					const plantColor = PLANT_COLORS[plant.itemSlug];
-
-					const plantWidth = (cellWidth * plant.growthRate) / 100;
-					const plantHeight = (cellHeight * plant.growthRate) / 100;
-
-					const offsetX = (cellWidth - plantWidth) / 2;
-					const offsetY = (cellHeight - plantHeight) / 2;
-
-					// Set plant color and opacity based on growth rate
-					ctx.fillStyle = plantColor;
-					ctx.globalAlpha = plant.growthRate / 100;
-
-					// Draw plant
-					ctx.fillRect(
-						x * cellWidth + offsetX,
-						y * cellHeight + offsetY,
-						plantWidth,
-						plantHeight
-					);
-
-					// Reset global alpha
-					ctx.globalAlpha = 1;
-
-					// Draw growth percentage
-					ctx.fillStyle = 'black';
-					ctx.font = '14px Arial';
-					ctx.fillText(
-						`${plant.growthRate.toFixed(0)}% (${plant.itemSlug})`,
-						x * cellWidth + 5,
-						y * cellHeight + cellHeight - 5
-					);
-				} else {
-					// Draw "NONE" when plant data is null
-					ctx.fillStyle = 'black';
-					ctx.font = '14px Arial';
-					ctx.fillText(`NONE`, x * cellWidth + 5, y * cellHeight + cellHeight - 5);
-
-					// Draw default gray color for empty cell
-					ctx.fillStyle = '#D4D4D4';
-					ctx.globalAlpha = 0.5;
-					ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
-
-					// Reset global alpha
-					ctx.globalAlpha = 1;
-				}
+				ctx.drawImage(plantImage, 1291 + x * 173, 133 + y * 304);
 			}
 		}
+
+		// Draw the base lights
+		this.container.canvasGreenhouseImages.baseLights.forEach((image) => {
+			ctx.drawImage(image, 0, 0);
+		});
 
 		return canvas.toBuffer();
 	}

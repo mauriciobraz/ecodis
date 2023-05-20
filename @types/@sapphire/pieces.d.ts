@@ -16,5 +16,14 @@ declare module '@sapphire/pieces' {
 				Wheat: Image[];
 			};
 		};
+		canvasGreenhouseImages: {
+			base: Image;
+			baseLights: Image[];
+			pot: Image;
+			potStrawberryStage1: Image;
+			potStrawberryStage2: Image;
+			potTomatoStage1: Image;
+			potTomatoStage2: Image;
+		};
 	}
 }

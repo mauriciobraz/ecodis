@@ -108,6 +108,27 @@ async function main(): Promise<void> {
 			Wheat: await Promise.all(IMAGES.PLANTS.Wheat.map(loadImageAndResizeCanvas))
 		}
 	};
+
+	container.canvasGreenhouseImages = {
+		base: loadImageAndResizeCanvas(resolveToAssetPath('greenhouse', 'base.png')),
+		baseLights: [
+			loadImageAndResizeCanvas(resolveToAssetPath('greenhouse', 'light-25.png')),
+			loadImageAndResizeCanvas(resolveToAssetPath('greenhouse', 'light-50.png'))
+		],
+		pot: loadImageAndResizeCanvas(resolveToAssetPath('greenhouse', 'pot.png')),
+		potStrawberryStage1: loadImageAndResizeCanvas(
+			resolveToAssetPath('greenhouse', 'pot_strawberry_stage_1.png')
+		),
+		potStrawberryStage2: loadImageAndResizeCanvas(
+			resolveToAssetPath('greenhouse', 'pot_strawberry_stage_2.png')
+		),
+		potTomatoStage1: loadImageAndResizeCanvas(
+			resolveToAssetPath('greenhouse', 'pot_tomato_stage_1.png')
+		),
+		potTomatoStage2: loadImageAndResizeCanvas(
+			resolveToAssetPath('greenhouse', 'pot_tomato_stage_2.png')
+		)
+	};
 }
 
 // Ensure that the main function is only called when this file is run directly
