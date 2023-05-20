@@ -1,4 +1,3 @@
-import type { AnimalType } from '@prisma/client';
 import { ItemType } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { InteractionHandler, InteractionHandlerTypes, Result } from '@sapphire/framework';
