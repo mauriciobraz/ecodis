@@ -167,7 +167,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		let selectedName;
 		let selectedPrice;
 
-		let selectedQuantity = 1;
+		let selectedQuantity = '1';
 		let selectedPriceInDiamonds = false;
 
 		if (category === 'Animal') {
@@ -208,7 +208,6 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		}
 
 		if (!(selectedData as Record<any, any>)?.unique && category !== 'Animal') {
-			// Adicione um menu de seleção de quantidade após selecionar um item
 			const quantitySelectMenu = this.buildQuantitySelectMenu(
 				`QUANTITY:${interaction.id}`,
 				selectedPrice,
@@ -239,7 +238,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			}
 
 			const quantitySelection = quantitySelectionResult.unwrap();
-			selectedQuantity = parseInt(quantitySelection.values.shift()!, 10);
+			selectedQuantity = quantitySelection.values.shift() as string;
 		}
 
 		// Check if the user has enough money.
@@ -248,10 +247,106 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			guildId: interaction.guildId
 		});
 
+		if (selectedQuantity === 'SELL_ALL') {
+			const guild = await this.container.database.guild.upsert({
+				where: { discordId: interaction.guildId },
+				create: { discordId: interaction.guildId },
+				update: {},
+				select: {
+					id: true
+				}
+			});
+
+			const {
+				userGuildDatas: [userGuildData]
+			} = await this.container.database.user.upsert({
+				where: {
+					discordId: interaction.user.id
+				},
+				create: {
+					discordId: interaction.user.id,
+					userGuildDatas: {
+						create: {
+							guildId: guild.id
+						}
+					}
+				},
+				update: {},
+				select: {
+					id: true,
+					userGuildDatas: {
+						where: {
+							guildId: guild.id
+						}
+					}
+				}
+			});
+
+			let inventory = await this.container.database.inventory.findUnique({
+				where: { userId: userGuildData.id }
+			});
+
+			if (!inventory) {
+				inventory = await this.container.database.inventory.create({
+					data: {
+						userId: userGuildData.id
+					}
+				});
+			}
+
+			const amountOfItem = await this.container.database.inventoryItem.findUnique({
+				where: {
+					itemId_inventoryId: {
+						itemId: selectedId,
+						inventoryId: inventory.id
+					}
+				},
+				select: {
+					amount: true
+				}
+			});
+
+			if (!amountOfItem) {
+				await interaction.editReply({
+					content: `Você não tem nenhum item **${selectedName}**. Este é um erro de programação, por favor, reporte-o no servidor de suporte.`,
+					components: []
+				});
+
+				return;
+			}
+
+			await ShopQueries.sellItem({
+				guildId: interaction.guildId,
+				userId: interaction.user.id,
+				itemId: selectedId,
+				sellAll: true
+			});
+
+			await UserQueries.updateBalance({
+				userId: interaction.user.id,
+				guildId: interaction.guildId,
+				[selectedPriceInDiamonds ? 'diamonds' : 'balance']: [
+					'increment',
+					selectedPrice * amountOfItem.amount
+				]
+			});
+
+			await interaction.editReply({
+				content: `Você vendeu todos os seus itens **${selectedName}** por ${
+					selectedPriceInDiamonds ? '💎' : '💰'
+				} ${selectedPrice * amountOfItem.amount}!`,
+				components: []
+			});
+
+			return;
+		}
+
+		const selectedQuantityAsNumber = parseInt(selectedQuantity, 10);
+
 		if (
 			selectedPriceInDiamonds
-				? diamonds < selectedPrice * selectedQuantity
-				: balance < selectedPrice * selectedQuantity
+				? diamonds < selectedPrice * selectedQuantityAsNumber
+				: balance < selectedPrice * selectedQuantityAsNumber
 		) {
 			await interaction.editReply({
 				content: `Você não tem dinheiro suficiente para comprar o item **${selectedName}**.`,
@@ -280,11 +375,11 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		await UserQueries.updateBalance({
 			userId: interaction.user.id,
 			guildId: interaction.guildId,
-			balance: ['decrement', selectedPrice * selectedQuantity]
+			balance: ['decrement', selectedPrice * selectedQuantityAsNumber]
 		});
 
 		await ShopQueries.buyItem({
-			amount: selectedQuantity,
+			amount: selectedQuantityAsNumber,
 			guildId: interaction.guildId,
 			userId: interaction.user.id,
 			data: DEFAULT_ITEM_DATA[selectedSlug as ItemSlug],
@@ -308,6 +403,15 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			.setCustomId(customId)
 			.setPlaceholder('Selecione uma quantidade desejada')
 			.addOptions([
+				new StringSelectMenuOptionBuilder()
+					.setEmoji('🛒')
+					.setValue('SELL_ALL')
+					.setLabel('Vender tudo')
+					.setDescription(
+						`→ Você venderá todos os seus itens e receberá em ${
+							priceInDiamonds ? '💎' : '💰'
+						}.`
+					),
 				...AMOUNTS.map((amount) =>
 					new StringSelectMenuOptionBuilder()
 						.setValue(`${amount}`)

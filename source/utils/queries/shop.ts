@@ -274,13 +274,180 @@ export namespace ShopQueries {
 			});
 		}
 
-		console.log({
-			animalId,
-			itemId
-		});
-
 		return Result.ok({
 			message: 'Item successfully purchased.'
+		});
+	}
+
+	interface SellItemOptions {
+		userId: string;
+		guildId: string;
+		itemId?: string;
+		animalId?: string;
+		amount?: number;
+		sellAll?: boolean;
+	}
+
+	/**
+	 * Sells an item for a user in a specific guild.
+	 * @param userId The ID of the user who wants to sell the item.
+	 * @param guildId The ID of the guild where the user wants to sell the item.
+	 * @param itemId The ID of the item to be sold.
+	 * @param animalId The ID of the animal to be sold.
+	 * @param amount The number of items to be sold.
+	 * @param sellAll A boolean indicating whether all items of this type should be sold.
+	 * @returns A message indicating whether the sale was successful or not.
+	 */
+	export async function sellItem(options: SellItemOptions) {
+		const { amount, guildId, itemId, animalId, userId, sellAll } = options;
+
+		if (!amount && !sellAll) {
+			return Result.err('You must specify an amount to sell.');
+		}
+
+		if (amount && sellAll) {
+			return Result.err('You cannot specify both an amount and sell all.');
+		}
+
+		if (animalId && itemId) {
+			return Result.err('You cannot specify both an animal ID and an item ID.');
+		}
+
+		let price: number | null = null;
+
+		if (itemId) {
+			const item = await container.database.item.findUnique({
+				where: {
+					id: itemId
+				},
+				select: {
+					price: true
+				}
+			});
+
+			price = item?.price ?? -1;
+		} else if (animalId) {
+			const animal = await container.database.animal.findUnique({
+				where: {
+					id: animalId
+				},
+				select: {
+					price: true
+				}
+			});
+
+			price = animal?.price ?? -1;
+		} else {
+			return Result.err('You must specify either an item ID or an animal ID.');
+		}
+
+		if (price === null || price === -1) {
+			return Result.err('Item not found.');
+		}
+
+		const guild = await container.database.guild.upsert({
+			where: { discordId: guildId },
+			create: { discordId: guildId },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const {
+			userGuildDatas: [userGuildData]
+		} = await container.database.user.upsert({
+			where: {
+				discordId: userId
+			},
+			create: {
+				discordId: userId,
+				userGuildDatas: {
+					create: {
+						guildId: guild.id
+					}
+				}
+			},
+			update: {},
+			select: {
+				id: true,
+				userGuildDatas: {
+					where: {
+						guildId: guild.id
+					}
+				}
+			}
+		});
+
+		let inventory = await container.database.inventory.findUnique({
+			where: { userId: userGuildData.id }
+		});
+
+		if (!inventory) {
+			inventory = await container.database.inventory.create({
+				data: {
+					userId: userGuildData.id
+				}
+			});
+		}
+
+		const inventoryId = inventory.id;
+
+		if (itemId) {
+			const inventoryItem = await container.database.inventoryItem.findUnique({
+				where: {
+					itemId_inventoryId: {
+						itemId,
+						inventoryId
+					}
+				},
+				select: { amount: true }
+			});
+
+			if (!inventoryItem || (inventoryItem.amount < amount! && !sellAll)) {
+				return Result.err('Not enough items to sell.');
+			}
+
+			const totalAmount = sellAll ? inventoryItem.amount : amount!;
+
+			const totalPrice = price * totalAmount;
+
+			await UserQueries.updateBalance({
+				userId,
+				guildId,
+				balance: ['increment', totalPrice]
+			});
+
+			if (sellAll) {
+				await container.database.inventoryItem.delete({
+					where: {
+						itemId_inventoryId: {
+							itemId,
+							inventoryId
+						}
+					}
+				});
+			} else {
+				await container.database.inventoryItem.update({
+					where: {
+						itemId_inventoryId: {
+							itemId,
+							inventoryId
+						}
+					},
+					data: {
+						amount: {
+							decrement: amount
+						}
+					}
+				});
+			}
+		} else if (animalId) {
+			return Result.err('Not implemented.');
+		}
+
+		return Result.ok({
+			message: 'Item successfully sold.'
 		});
 	}
 }
