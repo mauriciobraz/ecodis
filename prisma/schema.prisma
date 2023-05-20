@@ -19,6 +19,7 @@ enum JobType {
 }
 
 enum ItemType {
+  Consumable
   Greenhouse
   Weapon
   Armor
