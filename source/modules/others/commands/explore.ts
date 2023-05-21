@@ -85,7 +85,7 @@ export class ExploreCommand extends Command {
 		}
 
 		const loot = pickRandom(ALLOWED_ITEMS);
-		const gotDisease = Math.random() < 0.1;
+		const gotDisease = Math.random() < 0.2;
 
 		const inventoryToGetId = await this.container.database.inventory.findUnique({
 			where: { userId: userGuildData?.id },

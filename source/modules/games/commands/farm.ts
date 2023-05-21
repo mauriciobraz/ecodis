@@ -477,16 +477,10 @@ export default class FarmCommand extends Command {
 			userSeedsSelectMenu
 		);
 
-		if (interaction.replied) {
-			await interaction.editReply({
-				components: [userSeedsRow]
-			});
-		} else {
-			await interaction.reply({
-				components: [userSeedsRow],
-				ephemeral: true
-			});
-		}
+		await interaction.reply({
+			components: [userSeedsRow],
+			ephemeral: true
+		});
 
 		const channel =
 			interaction.channel ??
@@ -507,7 +501,6 @@ export default class FarmCommand extends Command {
 		);
 
 		if (collectedInteractionResult.isErr()) {
-			await interaction.deleteReply();
 			throw collectedInteractionResult.unwrapErr();
 		}
 
@@ -603,7 +596,11 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		await interaction.deleteReply();
+		await interaction.reply({
+			content: `Você plantou ${seedsToPlant} sementes de ${seedInventoryItem.item.name}.`,
+			components: [],
+			ephemeral: true
+		});
 
 		return updatedPlantData;
 	}
@@ -615,6 +612,7 @@ export default class FarmCommand extends Command {
 		for (let y = 0; y < farm.plantData.length; y++) {
 			for (let x = 0; x < farm.plantData[y].length; x++) {
 				const cell = farm.plantData[y][x];
+
 				if (cell === null || cell.growthRate < 100) {
 					continue;
 				}
@@ -722,7 +720,21 @@ export default class FarmCommand extends Command {
 			}
 		}
 
-		await interaction.deleteReply();
+		if (interaction.replied)
+			await interaction.editReply({
+				content: `Você colheu ${Object.entries(harvestedItems)
+					.map(([itemId, amount]) => `${amount}x ${itemId}`)
+					.join(', ')}.`,
+				components: []
+			});
+		else
+			await interaction.reply({
+				content: `Você colheu ${Object.entries(harvestedItems)
+					.map(([itemId, amount]) => `${amount}x ${itemId}`)
+					.join(', ')}.`,
+				components: [],
+				ephemeral: true
+			});
 
 		return farm.plantData;
 	}
@@ -817,7 +829,15 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		await interaction.deleteReply();
+		if (interaction.replied)
+			await interaction.editReply({
+				content: `Você plantou uma semente de ${seedInventoryItem.item.name}.`,
+				components: []
+			});
+		else
+			await interaction.reply({
+				content: `Você plantou uma semente de ${seedInventoryItem.item.name}.`
+			});
 
 		return updatedPlantData;
 	}
@@ -885,6 +905,9 @@ export default class FarmCommand extends Command {
 			where: {
 				inventoryId: userGuildData.inventory?.id,
 				itemId
+			},
+			include: {
+				item: true
 			}
 		});
 
@@ -931,7 +954,16 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		await interaction.deleteReply();
+		if (interaction.replied)
+			await interaction.editReply({
+				content: `Você colheu ${amount}x ${inventoryItem?.item.name}.`,
+				components: []
+			});
+		else
+			await interaction.reply({
+				content: `Você colheu ${amount}x ${inventoryItem?.item.name}.`,
+				ephemeral: true
+			});
 
 		return farm.plantData;
 	}
