@@ -278,8 +278,31 @@ async function updateGreenhouseItemGrowth(prismaClient: PrismaClient) {
 					if (cell.growthRate === 100) {
 						const user = await prismaClient.userGuildData.findUnique({
 							where: { id: greenhouse.userGuildDataId },
-							select: { inventory: { select: { id: true } } }
+							select: {
+								inventory: { select: { id: true } },
+								employmentData: true
+							}
 						});
+
+						if (
+							typeof user?.employmentData !== 'object' &&
+							!Array.isArray(user?.employmentData)
+						) {
+							continue;
+						}
+
+						const parsedEmployment = EmploymentDataSchema.safeParse(
+							user?.employmentData
+						);
+
+						if (
+							!parsedEmployment.success ||
+							!parsedEmployment.data.some(
+								(employee) => employee?.type === EmployeeType.Harvester
+							)
+						) {
+							continue;
+						}
 
 						if (user?.inventory) {
 							const inventoryItem = await prismaClient.inventoryItem.findFirst({

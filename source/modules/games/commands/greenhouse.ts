@@ -36,11 +36,6 @@ const DEFAULT_PLANT_DATA_GRID: PlantDataGrid = [
 	[null, null, null]
 ];
 
-const PLANT_COLORS = {
-	[ItemSlug.Strawberry]: '#ff3333',
-	[ItemSlug.RedBerries]: '#f24646'
-};
-
 const CUSTOM_IDS = {
 	GREENHOUSE_CONTROL_SELECT_MENU: 'GREENHOUSE:MENU',
 	GREENHOUSE_SEED_SELECT_MENU: 'GREENHOUSE:SEED:MENU'
