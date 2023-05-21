@@ -1,4 +1,4 @@
-import { JobType } from '@prisma/client';
+import { JobType, type Job } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import {
@@ -11,34 +11,21 @@ import {
 
 import { UserQueries } from '../../../utils/queries/user';
 
-import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
-	name: 'adicionar-trabalho',
-	description: 'Atribui um trabalho a um usuário.',
+	name: 'trabalhos',
+	description: 'Permite que um usuário escolha um trabalho para si mesmo.',
 
-	aliases: ['add-job', 'adicionar-trabalho', 'adicionar-trabalhador'],
+	aliases: ['choose-job', 'selecionar-trabalho', 'jobs'],
 	generateDashLessAliases: true,
 	generateUnderscoreLessAliases: true,
 
-	preconditions: ['GuildOnly', 'EditorOnly']
+	preconditions: ['GuildOnly']
 })
-export class AddJobCommand extends Command {
-	public override async messageRun(message: Message<true>, args: Args) {
-		const userResult = await args.pickResult('user');
-
-		if (userResult.isErr()) {
-			await message.reply({
-				content: 'Você precisa mencionar um usuário para atribuir um trabalho.'
-			});
-
-			return;
-		}
-
-		const user = userResult.unwrap();
-
-		const userDb = await UserQueries.getOrCreate(user.id);
+export class ChooseJobCommand extends Command {
+	public override async messageRun(message: Message<true>) {
+		const userDb = await UserQueries.getOrCreate(message.author.id);
 
 		const guildDb = await this.container.database.guild.upsert({
 			where: {
@@ -71,10 +58,22 @@ export class AddJobCommand extends Command {
 			}
 		});
 
-		const jobMenu = this.createJobMenu();
+		const jobMenu = this.createJobMenu(
+			(await this.container.database.job.findMany({
+				where: {
+					type: {
+						notIn: [JobType.Cop, JobType.Vet, JobType.Doctor]
+					}
+				},
+				select: {
+					type: true,
+					salary: true
+				}
+			})) as Job[]
+		);
 
 		await message.reply({
-			content: 'Selecione uma profissão para adicionar ao usuário.',
+			content: 'Selecione uma profissão para você.',
 			components: [jobMenu]
 		});
 
@@ -91,6 +90,7 @@ export class AddJobCommand extends Command {
 						.setCustomId('confirm')
 						.setLabel('Sim')
 						.setStyle(ButtonStyle.Success),
+
 					new ButtonBuilder()
 						.setCustomId('cancel')
 						.setLabel('Não')
@@ -98,9 +98,9 @@ export class AddJobCommand extends Command {
 				);
 
 				await interaction.editReply({
-					content: `Você está prestes a adicionar a profissão de ${selectedJob} ao usuário. Confirma?${
+					content: `Você está prestes a escolher a profissão de ${selectedJob} para si mesmo. Confirma?${
 						userGuildData.job
-							? ` Ele já possui a profissão de ${
+							? ` Você já possui a profissão de ${
 									{
 										[JobType.Cop]: 'policial',
 										[JobType.Vet]: 'veterinário',
@@ -137,7 +137,7 @@ export class AddJobCommand extends Command {
 						});
 
 						await interaction.editReply({
-							content: `Você adicionou a profissão de ${selectedJob} ao usuário.`,
+							content: `Você escolheu a profissão de ${selectedJob} para si mesmo.`,
 							components: []
 						});
 					} else if (buttonInteraction.customId === 'cancel') {
@@ -160,31 +160,31 @@ export class AddJobCommand extends Command {
 		});
 	}
 
-	private createJobMenu(): ActionRowBuilder<StringSelectMenuBuilder> {
+	private createJobMenu(jobs: Job[]): ActionRowBuilder<StringSelectMenuBuilder> {
+		const translations = {
+			[JobType.Cop]: 'policial',
+			[JobType.Vet]: 'veterinário',
+			[JobType.Doctor]: 'médico',
+			[JobType.StreetSweeper]: 'gari'
+		};
+
 		return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
 			new StringSelectMenuBuilder()
 				.setCustomId('jobMenu')
-				.setPlaceholder('Selecione uma profissão para adicionar ao usuário.')
-				.addOptions([
-					{
-						label: 'Cop',
-						description: 'Adicionar profissão de policial',
-						value: JobType.Cop,
-						emoji: '👮'
-					},
-					{
-						label: 'Vet',
-						description: 'Adicionar profissão de veterinário',
-						value: JobType.Vet,
-						emoji: '🐶'
-					},
-					{
-						label: 'Doctor',
-						description: 'Adicionar profissão de médico',
-						value: JobType.Doctor,
-						emoji: '🩺'
-					}
-				])
+				.setPlaceholder('Selecione uma profissão para você.')
+				.addOptions(
+					jobs.map((job) => ({
+						label: translations[job.type].toUpperCase(),
+						description: `Salário 🪙 ${job.salary.toLocaleString('pt-BR')}`,
+						value: job.type,
+						emoji: {
+							[JobType.Cop]: '👮',
+							[JobType.Vet]: '🐶',
+							[JobType.Doctor]: '🩺',
+							[JobType.StreetSweeper]: '🗑️'
+						}[job.type]
+					}))
+				)
 		);
 	}
 
@@ -192,7 +192,7 @@ export class AddJobCommand extends Command {
 		return message.channel.createMessageComponentCollector({
 			componentType: ComponentType.StringSelect,
 			filter: (i) => i.user.id === message.author.id,
-			time: 15000
+			time: 60000
 		});
 	}
 }

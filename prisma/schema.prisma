@@ -16,6 +16,7 @@ enum JobType {
   Cop
   Vet
   Doctor
+  StreetSweeper
 }
 
 enum ItemType {
@@ -242,9 +243,13 @@ model FarmAnimal {
   animal   Animal @relation(fields: [animalId], references: [id])
   animalId String @db.ObjectId
 
-  lastFedAt DateTime?
-  disease   AnimalDisease @default(None)
-  nickname  String?
+  energy Int @default(1000)
+
+  lastFedAt      DateTime?
+  lastProducedAt DateTime?
+
+  disease  AnimalDisease @default(None)
+  nickname String?
 
   @@unique([farmId, animalId])
 }

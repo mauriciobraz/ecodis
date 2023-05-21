@@ -44,6 +44,14 @@ const bree = new Bree({
 		{
 			name: 'growthRate',
 			interval: 'every 5 seconds'
+		},
+		{
+			name: 'animalsEnergy',
+			interval: 'every 60 seconds'
+		},
+		{
+			name: 'animalsProductions',
+			interval: 'every 1 hour'
 		}
 	]
 });

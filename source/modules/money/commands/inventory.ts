@@ -1,10 +1,11 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
-import { EmbedBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
 import { ShopQueries } from '../../../utils/queries/shop';
 
 import type { Message } from 'discord.js';
+import { DiscordJSUtils } from '../../../utils/discordjs';
 
 @ApplyOptions<Command.Options>({
 	name: 'inventory',
@@ -18,26 +19,53 @@ export class InventoryCommand extends Command {
 		const userId = message.author.id;
 		const { guildId } = message;
 
-		const userInventory = await ShopQueries.getInventory(userId, guildId);
+		const openInventoryButton = new ButtonBuilder()
+			.setStyle(ButtonStyle.Primary)
+			.setLabel('Abrir inventário')
+			.setCustomId('openInventory')
+			.setEmoji('<a:Chest:1109826595872587949>');
 
-		if (!userInventory || userInventory.items?.length === 0) {
-			await message.reply({
-				content: 'Seu inventário está vazio! Compre algum item com o comando `!loja`!'
+		const openInventoryRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+			openInventoryButton
+		);
+
+		await DiscordJSUtils.replyAndDelete(message, {
+			components: [openInventoryRow]
+		});
+
+		const collector = message.channel.createMessageComponentCollector({
+			filter: (i) => i.user.id === userId && i.customId === 'openInventory',
+			time: 60000
+		});
+
+		collector.on('collect', async (btnInteraction) => {
+			const userInventory = await ShopQueries.getInventory(userId, guildId);
+
+			if (!userInventory || userInventory.items?.length === 0) {
+				await btnInteraction.reply({
+					content: 'Seu inventário está vazio! Compre algum item com o comando `!loja`!',
+					ephemeral: true
+				});
+
+				return;
+			}
+
+			const inventoryEmbed = new EmbedBuilder()
+				.setTitle(`Inventário de ${message.author.tag}`)
+				.setDescription(
+					userInventory.items
+						?.filter(({ amount }) => amount > 0)
+						.map(({ amount, emoji, name }) => `• ${emoji} ${name} **x${amount}**`)
+						.join('\n')
+				)
+				.setColor(0x2b2d31);
+
+			await btnInteraction.reply({
+				embeds: [inventoryEmbed],
+				ephemeral: true
 			});
-			return;
-		}
 
-		const inventoryEmbed = new EmbedBuilder()
-			.setTitle(`Inventário de ${message.author.tag}`)
-			.setDescription(
-				userInventory.items
-					?.filter(({ amount }) => amount > 0)
-					.map(({ amount, emoji, name }) => `• ${emoji} ${name} **x${amount}**`)
-					.join('\n')
-			);
-
-		await message.reply({
-			embeds: [inventoryEmbed]
+			collector.stop();
 		});
 	}
 }

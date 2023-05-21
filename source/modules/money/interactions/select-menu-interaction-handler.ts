@@ -251,41 +251,41 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 			guildId: interaction.guildId
 		});
 
+		const guild = await this.container.database.guild.upsert({
+			where: { discordId: interaction.guildId },
+			create: { discordId: interaction.guildId },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const {
+			userGuildDatas: [userGuildData]
+		} = await this.container.database.user.upsert({
+			where: {
+				discordId: interaction.user.id
+			},
+			create: {
+				discordId: interaction.user.id,
+				userGuildDatas: {
+					create: {
+						guildId: guild.id
+					}
+				}
+			},
+			update: {},
+			select: {
+				id: true,
+				userGuildDatas: {
+					where: {
+						guildId: guild.id
+					}
+				}
+			}
+		});
+
 		if (selectedQuantity === 'SELL_ALL') {
-			const guild = await this.container.database.guild.upsert({
-				where: { discordId: interaction.guildId },
-				create: { discordId: interaction.guildId },
-				update: {},
-				select: {
-					id: true
-				}
-			});
-
-			const {
-				userGuildDatas: [userGuildData]
-			} = await this.container.database.user.upsert({
-				where: {
-					discordId: interaction.user.id
-				},
-				create: {
-					discordId: interaction.user.id,
-					userGuildDatas: {
-						create: {
-							guildId: guild.id
-						}
-					}
-				},
-				update: {},
-				select: {
-					id: true,
-					userGuildDatas: {
-						where: {
-							guildId: guild.id
-						}
-					}
-				}
-			});
-
 			let inventory = await this.container.database.inventory.findUnique({
 				where: { userId: userGuildData.id }
 			});
@@ -359,6 +359,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 			return;
 		}
+
 		if (selectedData && typeof selectedData === 'object' && 'unique' in selectedData) {
 			const alreadyHavePickaxe = await userHasMoreThanOneUniqueItem(
 				['IronPickaxe', 'DiamondPickaxe'],
@@ -374,6 +375,25 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 
 				return;
 			}
+		}
+
+		const alreadyHaveAnimal =
+			selectedType === 'Animal'
+				? await this.container.database.farmAnimal.findFirst({
+						where: {
+							animalId: selectedId,
+							farm: { userGuildDataId: userGuildData.id }
+						}
+				  })
+				: null;
+
+		if (alreadyHaveAnimal) {
+			await interaction.editReply({
+				content: `Você já tem um animal **${selectedName}**!`,
+				components: []
+			});
+
+			return;
 		}
 
 		await UserQueries.updateBalance({

@@ -1,11 +1,14 @@
+import { AnimalType, type Animal, type Farm, type FarmAnimal, type Item } from '@prisma/client';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command, Result } from '@sapphire/framework';
 import { createCanvas, loadImage } from 'canvas';
+import { addSeconds } from 'date-fns';
 import {
 	ActionRowBuilder,
 	ComponentType,
 	StringSelectMenuBuilder,
 	StringSelectMenuOptionBuilder,
+	time,
 	type Message
 } from 'discord.js';
 import dedent from 'ts-dedent';
@@ -21,10 +24,13 @@ import {
 import { ItemSlug } from '../../../utils/items';
 import { ShopQueries } from '../../../utils/queries/shop';
 
-import { AnimalType, type Animal, type Farm, type FarmAnimal, type Item } from '@prisma/client';
-import type { StringSelectMenuInteraction } from 'discord.js';
-import type { z } from 'zod';
+import { FARM_ROBBERY_COOLDOWN, ROBBERY_ENERGY_COST } from '../../../utils/constants';
 import { resolveToAssetPath } from '../../../utils/fs-utils';
+
+import type { Args } from '@sapphire/framework';
+import type { StringSelectMenuInteraction, User } from 'discord.js';
+import type { z } from 'zod';
+import type { ZodParsers } from '../../../utils/items';
 
 export const DEFAULT_PURCHASED_AREA: PurchasedArea = [
 	[true, false, false],
@@ -107,15 +113,17 @@ const SEEDS_POSITIONS = [
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export default class FarmCommand extends Command {
-	public override async messageRun(message: Message<true>) {
+	public override async messageRun(message: Message<true>, args: Args) {
+		const userResult = await args.pickResult('user');
+		const user: User = userResult.unwrapOr(message.author);
+
 		let msg: Message<true> | null = null;
 		let continueLoop = true;
 
 		while (continueLoop) {
-			// Verificar ou criar fazenda para o usuário
 			const farmResult = await this.getOrCreateFarm({
 				guildId: message.guildId,
-				userId: message.author.id
+				userId: user.id
 			});
 
 			if (farmResult.isErr()) {
@@ -137,65 +145,116 @@ export default class FarmCommand extends Command {
 			const controlsSelectMenu = this.createControlsSelectMenu(farm.plantData);
 
 			if (!msg) {
+				const robStringSelect = new StringSelectMenuBuilder()
+					.setCustomId(`ROB_FARM_FROM_${user.id}`)
+					.setPlaceholder('Selecione uma ação')
+					.setOptions(
+						farm.plantData.flatMap((row, y) =>
+							row.map((_plant, x) => {
+								const currentIndex = y * row.length + x + 1;
+
+								return new StringSelectMenuOptionBuilder()
+									.setLabel(`Roubar (${currentIndex})`)
+									.setValue(`ROB_${x}_${y}_${user.id}`)
+									.setEmoji('🔫');
+							})
+						)
+					);
+
+				const robStringSelectRow =
+					new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(robStringSelect);
+
 				msg = await message.reply({
-					content: `**Fazenda de ${message.author.username}**`,
-					components: [controlsSelectMenu],
-					files: [farmImage]
+					content: `**Fazenda de ${user.tag}**`,
+					files: [farmImage],
+					components: [
+						user.id === message.author.id ? controlsSelectMenu : robStringSelectRow
+					]
 				});
 			}
 
-			const collectedInteractionResponse = await Result.fromAsync(
-				message.channel.awaitMessageComponent({
-					componentType: ComponentType.StringSelect,
-					filter: (i) =>
-						i.member.id === message.author.id &&
-						i.customId === CUSTOM_IDS.FARM_CONTROL_SELECT_MENU,
-					time: 60_000
-				})
-			);
+			if (user.id === message.author.id) {
+				const collectedInteractionResponse = await Result.fromAsync(
+					message.channel.awaitMessageComponent({
+						componentType: ComponentType.StringSelect,
+						filter: (i) =>
+							i.member.id === message.author.id &&
+							i.customId === CUSTOM_IDS.FARM_CONTROL_SELECT_MENU,
+						time: 60_000
+					})
+				);
 
-			if (collectedInteractionResponse.isErr()) {
-				await message.delete();
-				continueLoop = false;
+				if (collectedInteractionResponse.isErr()) {
+					await message.delete();
+					continueLoop = false;
 
-				break;
-			}
+					break;
+				}
 
-			const collectedInteraction = collectedInteractionResponse.unwrap();
+				const collectedInteraction = collectedInteractionResponse.unwrap();
 
-			const farmControlSelectMenuValue = collectedInteraction
-				.values[0] as FarmControlSelectMenuValue;
+				const farmControlSelectMenuValue = collectedInteraction
+					.values[0] as FarmControlSelectMenuValue;
 
-			let newPlantData: PlantDataGrid | undefined;
+				let newPlantData: PlantDataGrid | undefined;
 
-			if (farmControlSelectMenuValue === 'plant_all') {
-				newPlantData = await this.plantAll(collectedInteraction, farm);
-			} else if (farmControlSelectMenuValue === 'harvest_all') {
-				newPlantData = await this.harvestAll(collectedInteraction, farm);
+				if (farmControlSelectMenuValue === 'plant_all') {
+					newPlantData = await this.plantAll(collectedInteraction, farm);
+				} else if (farmControlSelectMenuValue === 'harvest_all') {
+					newPlantData = await this.harvestAll(collectedInteraction, farm);
+				} else {
+					const [method, rawPlantRow, rawPlantCol] = farmControlSelectMenuValue.split(
+						'_'
+					) as ['plant' | 'harvest', string, string];
+
+					const plantRow = Number(rawPlantRow);
+					const plantCol = Number(rawPlantCol);
+
+					newPlantData = await this[method](
+						collectedInteraction,
+						farm,
+						plantRow,
+						plantCol
+					);
+				}
+
+				// Update the farm with the new image.
+				await msg.edit({
+					content: `**Fazenda de ${user.tag}**`,
+					components: [controlsSelectMenu],
+					...(newPlantData && {
+						files: [
+							await this.generateFarmImage({
+								...farm,
+								plantData: newPlantData
+							})
+						]
+					})
+				});
 			} else {
-				const [method, rawPlantRow, rawPlantCol] = farmControlSelectMenuValue.split(
-					'_'
-				) as ['plant' | 'harvest', string, string];
+				const collectedInteractionResponse = await Result.fromAsync(
+					message.channel.awaitMessageComponent({
+						componentType: ComponentType.StringSelect,
+						filter: (i) =>
+							i.member.id === message.author.id &&
+							i.customId === `ROB_FARM_FROM_${user.id}` &&
+							i.values[0].startsWith('ROB_') &&
+							i.message.id === msg?.id,
+						time: 60_000
+					})
+				);
 
-				const plantRow = Number(rawPlantRow);
-				const plantCol = Number(rawPlantCol);
+				if (collectedInteractionResponse.isErr()) {
+					await message.delete();
+					continueLoop = false;
 
-				newPlantData = await this[method](collectedInteraction, farm, plantRow, plantCol);
+					break;
+				}
+
+				const collectedInteraction = collectedInteractionResponse.unwrap();
+
+				await this.rob(collectedInteraction);
 			}
-
-			// Update the farm with the new image.
-			await msg.edit({
-				content: `**Fazenda de ${message.author.username}**`,
-				components: [controlsSelectMenu],
-				...(newPlantData && {
-					files: [
-						await this.generateFarmImage({
-							...farm,
-							plantData: newPlantData
-						})
-					]
-				})
-			});
 		}
 	}
 
@@ -341,7 +400,6 @@ export default class FarmCommand extends Command {
 
 		// eslint-disable-next-line @typescript-eslint/prefer-for-of
 		for (let y = 0; y < farm.plantData.length; y++) {
-			// eslint-disable-next-line @typescript-eslint/prefer-for-of
 			for (let x = 0; x < farm.plantData[y].length; x++) {
 				const cell = farm.plantData[y][x];
 
@@ -369,27 +427,79 @@ export default class FarmCommand extends Command {
 			}
 		}
 
-		for (let i = 0; i < SEEDS_POSITIONS.length; i++) {
-			const plantX = SEEDS_POSITIONS[i][0];
-			const plantY = SEEDS_POSITIONS[i][1];
+		for (let y = 0; y < farm.plantData.length; y++) {
+			for (let x = 0; x < farm.plantData[y].length; x++) {
+				const cell = farm.plantData[y][x];
 
-			context.font = '62px sans-serif';
-			context.textAlign = 'center';
-			context.strokeStyle = 'black';
+				if (!cell) {
+					continue;
+				}
 
-			context.fillStyle = 'white';
-			context.shadowColor = 'black';
+				const plantX = SEEDS_POSITIONS[y * farm.plantData[y].length + x][0];
+				const plantY = SEEDS_POSITIONS[y * farm.plantData[y].length + x][1];
 
-			context.lineWidth = 12;
+				// This is cached by prisma-redis-cache, so it's fine to do this here.
+				const item = await this.container.database.item.findUnique({
+					where: {
+						id: cell.itemId
+					},
+					select: {
+						data: true,
+						updatedAt: true
+					}
+				});
 
-			const seedHeight = 474 - 20;
-			const textY = plantY + seedHeight - 20;
+				const itemData = item?.data as z.infer<typeof ZodParsers.Seed>;
 
-			context.strokeText(`${i + 1}`, plantX, textY);
-			context.fillText(`${i + 1}`, plantX, textY);
+				const growthRemaining = 100 - cell.growthRate;
 
-			context.shadowColor = 'transparent';
-			context.shadowBlur = 0;
+				// note que nós estamos dividindo por 60 ao invés de 3600, porque nós queremos o resultado em minutos
+				const timeRemainingInMinutes = (growthRemaining * itemData.growthTime) / 60;
+
+				// Convertendo para segundos
+				const timeRemainingInSeconds = timeRemainingInMinutes * 60;
+
+				const hours = Math.floor(timeRemainingInMinutes / 60);
+				const minutes = Math.floor(timeRemainingInMinutes % 60);
+				const seconds = Math.floor(timeRemainingInSeconds % 60);
+
+				// Se minutos ou segundos for menos que 10, acrescentamos um zero à frente para manter a formatação consistente.
+				const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+				const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+
+				const timeText = `${hours}h ${formattedMinutes}m ${formattedSeconds}s`;
+
+				context.font = '42px sans-serif';
+				context.fillStyle = 'white';
+				context.strokeStyle = 'black';
+				context.lineWidth = 8;
+
+				const seedHeight = 474 - 20;
+				const textYTime = plantY + seedHeight - 40;
+				const textYNumber = textYTime + 65;
+
+				const textXOffset = 15;
+
+				// Display remaining time
+				context.textAlign = 'center';
+				context.strokeText(timeText, plantX + textXOffset, textYTime);
+				context.fillText(timeText, plantX + textXOffset, textYTime);
+
+				// Display the seed number
+				context.strokeText(
+					`${y * farm.plantData[y].length + x + 1}`,
+					plantX + textXOffset,
+					textYNumber
+				);
+				context.fillText(
+					`${y * farm.plantData[y].length + x + 1}`,
+					plantX + textXOffset,
+					textYNumber
+				);
+
+				context.shadowColor = 'transparent';
+				context.shadowBlur = 0;
+			}
 		}
 
 		return canvas.toBuffer();
@@ -434,6 +544,193 @@ export default class FarmCommand extends Command {
 	}
 
 	/**
+	 * Handles the rob request of a user.
+	 * @param interaction Button interaction to use.
+	 */
+	private async rob(interaction: StringSelectMenuInteraction) {
+		const [_rob, xRaw, yRaw, targetUserId] = interaction.values[0].split('_');
+		const [x, y] = [Number(xRaw), Number(yRaw)];
+
+		if (isNaN(x) || isNaN(y)) {
+			await interaction.reply({
+				content: `Houve um erro inesperado ao validar o índice da fazenda. Reporte isso ao desenvolvedor. (${interaction.values[0]})`,
+				ephemeral: true
+			});
+
+			return;
+		}
+
+		const guildDatabase = await this.container.database.guild.upsert({
+			where: { discordId: interaction.guildId! },
+			create: { discordId: interaction.guildId! },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const userDatabase = await this.container.database.user.upsert({
+			where: { discordId: targetUserId },
+			create: { discordId: targetUserId },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const userGuildData = await this.container.database.userGuildData.upsert({
+			where: {
+				userId_guildId: {
+					guildId: guildDatabase.id,
+					userId: userDatabase.id
+				}
+			},
+			create: {
+				userId: userDatabase.id,
+				guildId: guildDatabase.id
+			},
+			update: {},
+			select: {
+				id: true,
+				balance: true,
+				energy: true,
+				committedCrimeAt: true,
+				farm: true
+			}
+		});
+
+		const cooldownDate = userGuildData.committedCrimeAt
+			? addSeconds(userGuildData.committedCrimeAt, FARM_ROBBERY_COOLDOWN)
+			: new Date(0);
+
+		if (cooldownDate > new Date()) {
+			await interaction.reply({
+				content: `Você só poderá roubar outra fazenda ${time(cooldownDate, 'R')}.`,
+				ephemeral: true
+			});
+
+			return;
+		}
+
+		const user = await this.container.client.users.fetch(targetUserId);
+
+		if (userGuildData.farm === null) {
+			await interaction.reply({
+				content: `**${user.tag}** não tem uma fazenda para roubar!`,
+				ephemeral: true
+			});
+
+			return;
+		}
+
+		const plantDataParsed = PlantDataGridSchema.safeParse(userGuildData.farm.plantData);
+
+		if (!plantDataParsed.success) {
+			await interaction.reply({
+				content: `Houve um erro inesperado ao validar a fazenda de **${user.tag}**. Reporte isso ao desenvolvedor.`,
+				ephemeral: true
+			});
+
+			return;
+		}
+
+		const isSlotEmpty = plantDataParsed.data[y][x] === null;
+
+		if (isSlotEmpty) {
+			await interaction.reply({
+				content: `Não há plantas para roubar na posição **${
+					x * plantDataParsed.data[x].length + y + 1
+				}** da fazenda de **${user.tag}**!`,
+				ephemeral: true
+			});
+
+			return;
+		}
+
+		const stolenPlant = plantDataParsed.data[y][x]!;
+
+		const newPlantData = JSON.parse(JSON.stringify(plantDataParsed.data)) as PlantDataGrid;
+		newPlantData[y][x] = null;
+
+		await this.container.database.farm.update({
+			where: {
+				id: userGuildData.farm.id
+			},
+			data: {
+				plantData: newPlantData
+			}
+		});
+
+		await this.container.database.userGuildData.update({
+			where: {
+				id: userGuildData.id
+			},
+			data: {
+				energy: { decrement: ROBBERY_ENERGY_COST },
+				farm: { update: { plantData: newPlantData } }
+			}
+		});
+
+		let inventory = await this.container.database.inventory.findUnique({
+			where: { userId: userGuildData.id }
+		});
+
+		if (!inventory) {
+			inventory = await this.container.database.inventory.create({
+				data: {
+					userId: userGuildData.id
+				}
+			});
+		}
+
+		const amountOfPlant = await this.container.database.inventoryItem.findUnique({
+			where: {
+				itemId_inventoryId: {
+					itemId: stolenPlant.itemId,
+					inventoryId: inventory.id
+				}
+			},
+			select: {
+				amount: true
+			}
+		});
+
+		if (amountOfPlant) {
+			await this.container.database.inventoryItem.update({
+				where: {
+					itemId_inventoryId: {
+						itemId: stolenPlant.itemId,
+						inventoryId: inventory.id
+					}
+				},
+				data: {
+					amount: {
+						increment: 1
+					}
+				}
+			});
+		} else {
+			await this.container.database.inventoryItem.create({
+				data: {
+					itemId: stolenPlant.itemId,
+					inventoryId: inventory.id,
+					amount: 1
+				}
+			});
+		}
+
+		await this.container.database.userGuildData.update({
+			where: { id: userGuildData.id },
+			data: { committedCrimeAt: new Date() }
+		});
+
+		await interaction.reply({
+			content: `Você roubou uma planta da fazenda de **${user.tag}**!`,
+			ephemeral: true
+		});
+	}
+
+	/**
 	 * Handles the input for which seed the user needs.
 	 * @param interaction Interaction to use.
 	 * @returns The selected seed ID.
@@ -452,7 +749,7 @@ export default class FarmCommand extends Command {
 		if (!userSeeds.length) {
 			const content = 'Você não tem nenhuma semente no inventário.';
 
-			if (interaction.replied) {
+			if (interaction.deferred) {
 				await interaction.editReply({ content });
 			} else {
 				await interaction.reply({ content, ephemeral: true });
@@ -523,10 +820,13 @@ export default class FarmCommand extends Command {
 
 		const seedInventoryItem = await this.container.database.inventoryItem.findFirst({
 			where: {
+				inventory: {
+					user: {
+						user: { discordId: interaction.user.id }
+					}
+				},
 				itemId: seedId,
-				amount: {
-					gt: 0
-				}
+				amount: { gt: 0 }
 			},
 			select: {
 				id: true,
@@ -548,6 +848,7 @@ export default class FarmCommand extends Command {
 
 			return;
 		}
+
 		let emptyCells = 0;
 
 		for (const row of farm.plantData) {
@@ -556,6 +857,24 @@ export default class FarmCommand extends Command {
 					emptyCells++;
 				}
 			}
+		}
+
+		if (emptyCells <= 0) {
+			await interaction.editReply({
+				content: 'Não há espaço para plantar.',
+				components: []
+			});
+
+			return;
+		}
+
+		if (seedInventoryItem.amount < emptyCells) {
+			await interaction.editReply({
+				content: `Você não tem sementes suficientes para plantar. Você tem ${seedInventoryItem.amount} sementes de ${seedInventoryItem.item.name} no seu inventário.`,
+				components: []
+			});
+
+			return;
 		}
 
 		let seedsPlanted = 0;
@@ -596,10 +915,9 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		await interaction.reply({
+		await interaction.editReply({
 			content: `Você plantou ${seedsToPlant} sementes de ${seedInventoryItem.item.name}.`,
-			components: [],
-			ephemeral: true
+			components: []
 		});
 
 		return updatedPlantData;
@@ -621,6 +939,15 @@ export default class FarmCommand extends Command {
 				harvestedItems[itemId] = (harvestedItems[itemId] || 0) + 1;
 				farm.plantData[y][x] = null;
 			}
+		}
+
+		if (Object.keys(harvestedItems).length <= 0) {
+			await interaction.editReply({
+				content: 'Não há nada para colher.',
+				components: []
+			});
+
+			return;
 		}
 
 		// Update the farm in the database.
@@ -677,8 +1004,7 @@ export default class FarmCommand extends Command {
 			throw new Error('User guild data not found.');
 		}
 
-		// eslint-disable-next-line guard-for-in
-		for (const itemId in harvestedItems) {
+		for (const itemId of Object.keys(harvestedItems)) {
 			const amount = harvestedItems[itemId];
 
 			const inventoryItem = await this.container.database.inventoryItem.findFirst({
@@ -720,21 +1046,12 @@ export default class FarmCommand extends Command {
 			}
 		}
 
-		if (interaction.replied)
-			await interaction.editReply({
-				content: `Você colheu ${Object.entries(harvestedItems)
-					.map(([itemId, amount]) => `${amount}x ${itemId}`)
-					.join(', ')}.`,
-				components: []
-			});
-		else
-			await interaction.reply({
-				content: `Você colheu ${Object.entries(harvestedItems)
-					.map(([itemId, amount]) => `${amount}x ${itemId}`)
-					.join(', ')}.`,
-				components: [],
-				ephemeral: true
-			});
+		await interaction.reply({
+			content: `Você colheu ${Object.entries(harvestedItems)
+				.map(([itemId, amount]) => `${amount}x ${itemId}`)
+				.join(', ')}.`,
+			components: []
+		});
 
 		return farm.plantData;
 	}
@@ -743,10 +1060,9 @@ export default class FarmCommand extends Command {
 		interaction: StringSelectMenuInteraction,
 		farm: FarmWithAnimals,
 		plantRow: number,
-		plantCol: number,
-		ignoreEmptyCell = false
+		plantCol: number
 	) {
-		if (farm.plantData[plantRow][plantCol] && !ignoreEmptyCell) {
+		if (farm.plantData[plantRow][plantCol]) {
 			await interaction.editReply({
 				content: 'A célula selecionada já possui uma semente. Por favor, escolha outra.',
 				components: []
@@ -758,6 +1074,15 @@ export default class FarmCommand extends Command {
 		const seed = await this.askForSeedId(interaction);
 
 		if (!seed) {
+			return;
+		}
+
+		if (seed.amount <= 0) {
+			await interaction.editReply({
+				content: 'Você não tem sementes suficientes para plantar.',
+				components: []
+			});
+
 			return;
 		}
 
@@ -783,17 +1108,10 @@ export default class FarmCommand extends Command {
 		});
 
 		if (!seedInventoryItem) {
-			const content = 'A semente selecionada não foi encontrada no seu inventário.';
-
-			if (interaction.deferred)
-				await interaction.editReply({
-					content,
-					components: []
-				});
-			else
-				await interaction.reply({
-					content
-				});
+			await interaction.editReply({
+				content: 'A semente selecionada não foi encontrada no seu inventário.',
+				components: []
+			});
 
 			return;
 		}
@@ -829,15 +1147,10 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		if (interaction.replied)
-			await interaction.editReply({
-				content: `Você plantou uma semente de ${seedInventoryItem.item.name}.`,
-				components: []
-			});
-		else
-			await interaction.reply({
-				content: `Você plantou uma semente de ${seedInventoryItem.item.name}.`
-			});
+		await interaction.editReply({
+			content: `Você plantou uma semente de ${seedInventoryItem.item.name}.`,
+			components: []
+		});
 
 		return updatedPlantData;
 	}
@@ -850,8 +1163,23 @@ export default class FarmCommand extends Command {
 	) {
 		const cell = farm.plantData[plantRow][plantCol];
 
-		if (cell === null || cell.growthRate < 100) {
-			return; // Do not harvest if there's no plant or if the growthRate is less than 100.
+		if (cell === null) {
+			await interaction.reply({
+				content: 'A célula selecionada não possui uma planta para colher.',
+				components: [],
+				ephemeral: true
+			});
+
+			return;
+		}
+
+		if (cell.growthRate < 100) {
+			await interaction.reply({
+				content: 'A planta selecionada ainda não está pronta para colher.',
+				ephemeral: true
+			});
+
+			return;
 		}
 
 		const userId = interaction.user.id;
@@ -954,16 +1282,10 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		if (interaction.replied)
-			await interaction.editReply({
-				content: `Você colheu ${amount}x ${inventoryItem?.item.name}.`,
-				components: []
-			});
-		else
-			await interaction.reply({
-				content: `Você colheu ${amount}x ${inventoryItem?.item.name}.`,
-				ephemeral: true
-			});
+		await interaction.reply({
+			content: `Você colheu ${amount}x ${inventoryItem?.item.name}.`,
+			ephemeral: true
+		});
 
 		return farm.plantData;
 	}

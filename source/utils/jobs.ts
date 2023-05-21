@@ -37,6 +37,18 @@ export async function createJobsIfNotExists() {
 		},
 		update: {}
 	});
+
+	await container.database.job.upsert({
+		where: {
+			type: JobType.StreetSweeper
+		},
+		create: {
+			type: JobType.StreetSweeper,
+			salary: 2000,
+			cooldown: 10800
+		},
+		update: {}
+	});
 }
 
 /** Gets an item's ID from its slug. */

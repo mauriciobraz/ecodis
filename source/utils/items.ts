@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { ItemType } from '@prisma/client';
+import { AnimalType, ItemType } from '@prisma/client';
 import { container } from '@sapphire/pieces';
 
 export enum ItemSlug {
@@ -19,6 +19,7 @@ export enum ItemSlug {
 	Cafe = 'Café',
 	RedBull = 'RedBull',
 
+	Ration = 'Ration',
 	Wheat = 'Wheat',
 	Beans = 'Beans',
 	Pumpkin = 'Pumpkin',
@@ -71,6 +72,12 @@ export const ZodParsers = {
 	Consumable: CommonSchema.extend({
 		/** The amount of energy that a consumable restores. */
 		energy: z.number().positive().min(0)
+	}),
+
+	Ration: z.object({
+		[AnimalType.Chicken]: z.number().positive().min(0),
+		[AnimalType.Horse]: z.number().positive().min(0),
+		[AnimalType.Rabbit]: z.number().positive().min(0)
 	})
 };
 
@@ -86,6 +93,12 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 	} as z.infer<typeof ZodParsers.UserPickaxe>,
 
 	// Consumables
+
+	[ItemSlug.Ration]: {
+		[AnimalType.Chicken]: 1000,
+		[AnimalType.Horse]: 1000,
+		[AnimalType.Rabbit]: 1000
+	} as z.infer<typeof ZodParsers.Ration>,
 
 	[ItemSlug.Egg]: {
 		energy: 50
@@ -134,21 +147,21 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 
 	[ItemSlug.Cannabis]: {
 		illegal: true,
-		growthTime: 480,
+		growthTime: 1,
 		yield: 3,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
 
 	[ItemSlug.Strawberry]: {
 		illegal: true,
-		growthTime: 3.5,
+		growthTime: 480,
 		yield: 3,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
 
 	[ItemSlug.RedBerries]: {
 		illegal: true,
-		growthTime: 3.5,
+		growthTime: 480,
 		yield: 3,
 		diseases: []
 	} as z.infer<typeof ZodParsers.Seed>,
@@ -313,6 +326,25 @@ export async function createItemsIfNotExists() {
 	// Foods
 	// Foods
 	// Foods
+
+	// await container.database.item.upsert({
+	// 	where: {
+	// 		slug: ItemSlug.Ration
+	// 	},
+	// 	create: {
+	// 		slug: ItemSlug.Ration,
+	// 		type: ItemType.Food,
+
+	// 		emoji: '🍞',
+	// 		price: 100,
+
+	// 		name: 'Ração para Animais',
+	// 		description: 'Ração para alimentar os seus animais.',
+
+	// 		data: DEFAULT_ITEM_DATA[ItemSlug.Ration]
+	// 	},
+	// 	update: {}
+	// });
 
 	await container.database.item.upsert({
 		where: {

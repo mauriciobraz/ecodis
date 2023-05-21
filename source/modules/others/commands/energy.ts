@@ -1,7 +1,6 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
-import type { Message } from 'discord.js';
-import { time } from 'discord.js';
+import { EmbedBuilder, time, type Message } from 'discord.js';
 import dedent from 'ts-dedent';
 
 import { CONFIG } from '../../../utils/constants/config';
@@ -12,27 +11,39 @@ import { CONFIG } from '../../../utils/constants/config';
 	preconditions: ['GuildOnly', 'NotArrested']
 })
 export class EnergyCommand extends Command {
-	public override async messageRun(message: Message) {
-		const userId = message.author.id;
-		const guildId = message.guildId!; // Assuming guildId is always available in a guild context
-
-		const {
-			userGuildDatas: [oldUserGuildData]
-		} = await this.container.database.user.upsert({
-			where: { discordId: userId },
-			create: { discordId: userId },
+	public override async messageRun(message: Message<true>) {
+		const guildDatabase = await this.container.database.guild.upsert({
+			where: { discordId: message.guildId },
+			create: { discordId: message.guildId },
 			update: {},
 			select: {
-				userGuildDatas: {
-					where: {
-						guild: {
-							discordId: guildId
-						}
-					},
-					select: {
-						id: true
-					}
+				id: true
+			}
+		});
+
+		const userDatabase = await this.container.database.user.upsert({
+			where: { discordId: message.author.id },
+			create: { discordId: message.author.id },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const oldUserGuildData = await this.container.database.userGuildData.upsert({
+			where: {
+				userId_guildId: {
+					guildId: guildDatabase.id,
+					userId: userDatabase.id
 				}
+			},
+			create: {
+				guildId: guildDatabase.id,
+				userId: userDatabase.id
+			},
+			update: {},
+			select: {
+				id: true
 			}
 		});
 
@@ -52,11 +63,29 @@ export class EnergyCommand extends Command {
 			(energyUpdatedAt ?? new Date()).getTime() + CONFIG.ENERGY_RESET_TIME
 		);
 
+		const maxEnergy = 1000;
+		const progressBarLength = 21;
+		const energyRatio = energy / maxEnergy;
+
+		const filledBlocks = Math.floor(energyRatio * progressBarLength);
+		const emptyBlocks = progressBarLength - filledBlocks;
+
+		const progressBar = '🟩'.repeat(filledBlocks) + '⬛'.repeat(emptyBlocks);
+
 		await message.reply({
-			content: dedent`
-				Energia: ${energy}/${CONFIG.MAX_ENERGY}
-				Faltam ${time(nextUpdateIn)} para recarregar sua energia.
-			`
+			embeds: [
+				new EmbedBuilder()
+					.setTitle(`Energia de ${message.author.tag}`)
+					.setDescription(
+						dedent`
+							🕐 Faltam ${time(nextUpdateIn, 'R')} para recarregar sua energia.
+						`
+					)
+					.setColor(0x2b2d31)
+					.setFooter({
+						text: `${(energyRatio * 100).toFixed(0)}% | ${progressBar}`
+					})
+			]
 		});
 	}
 }

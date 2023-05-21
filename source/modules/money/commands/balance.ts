@@ -6,7 +6,7 @@ import dedent from 'ts-dedent';
 import { UserQueries } from '../../../utils/queries/user';
 
 import type { Args } from '@sapphire/framework';
-import type { Message } from 'discord.js';
+import type { Message, User } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
 	name: 'saldo',
@@ -17,26 +17,26 @@ import type { Message } from 'discord.js';
 })
 export class BalanceCommand extends Command {
 	public override async messageRun(message: Message<true>, args: Args) {
-		const userResult = await args.pick('user').catch(() => message.author);
+		const userResult = await args.pickResult('user');
+		const user: User = userResult.unwrapOr(message.author);
 
 		const userBalances = await UserQueries.getUserBalances({
-			userId: userResult.id,
+			userId: user.id,
 			guildId: message.guildId
 		});
 
 		const embed = new EmbedBuilder()
 			.setColor('Blurple')
 			.setAuthor({
-				name: userResult.tag,
-				iconURL: userResult.displayAvatarURL()
+				name: user.tag,
+				iconURL: user.displayAvatarURL()
 			})
 			.setDescription(
 				dedent`
-					💵 | Carteira: $${userBalances.balance}
-					🏦 | Banco: $${userBalances.balanceInBank}
-					💰 | Dinheiro sujo: $${userBalances.dirtyBalance}
-					💠 | Diamantes: ${userBalances.diamonds}
-					🏅 | ~~Rank: **NO RANK**~~
+					💵 **Carteira**: $${userBalances.balance}
+					🏦 **Banco**: $${userBalances.balanceInBank}
+					💰 **Dinheiro sujo**: $${userBalances.dirtyBalance}
+					💠 **Diamantes**: ${userBalances.diamonds}
 				`
 			);
 

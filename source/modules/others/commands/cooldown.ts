@@ -80,7 +80,7 @@ export class CooldownCommand extends Command {
 			{
 				embeds: [
 					new EmbedBuilder()
-						.setTitle('Tempos de recarga')
+						.setTitle(`Tempos de recargas de ${message.author.tag}`)
 						.setColor(0x2b2d31)
 						.setDescription(
 							dedent`

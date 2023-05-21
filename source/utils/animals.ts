@@ -2,6 +2,12 @@ import { AnimalType } from '@prisma/client';
 import { container } from '@sapphire/pieces';
 import { ItemSlug } from './items';
 
+export const ANIMALS_REGEN = {
+	[AnimalType.Chicken]: 500,
+	[AnimalType.Horse]: 500,
+	[AnimalType.Rabbit]: 500
+};
+
 /**
  * @note This function should be called AFTER `createItemsIfNotExists`
  */
@@ -24,7 +30,6 @@ export async function createAnimalsIfNotExists() {
 					slug: ItemSlug.Fertilizer
 				}
 			},
-
 			produceItemRange: [1, 6]
 		},
 		update: {}

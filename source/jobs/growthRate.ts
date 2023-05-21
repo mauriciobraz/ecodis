@@ -105,9 +105,10 @@ async function updateFarmItemGrowth(prismaClient: PrismaClient) {
 					}
 
 					const elapsedTimeInMinutes = elapsedTime / 60000;
+					const growthTimeInMinutes = safelyParsedItemData.data.growthTime;
 
 					const growthRate = clamp(
-						(elapsedTimeInMinutes / safelyParsedItemData.data.growthTime) * 100,
+						(elapsedTimeInMinutes / growthTimeInMinutes) * 100,
 						0,
 						100
 					);

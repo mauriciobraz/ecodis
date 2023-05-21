@@ -23,6 +23,12 @@ export const ROBBERY_COOLDOWN = 3600;
 export const FARM_ROBBERY_COOLDOWN = 3600;
 
 /**
+ * Amount of energy that will be charged for robbing a farm.
+ * @default 250
+ */
+export const ROBBERY_ENERGY_COST = 250;
+
+/**
  * Amount of plants that will be stolen from the farm.
  * @default 3
  */

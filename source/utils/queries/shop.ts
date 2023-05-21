@@ -265,6 +265,17 @@ export namespace ShopQueries {
 				});
 			}
 
+			const alreadyHasAnimal = await container.database.farmAnimal.findFirst({
+				where: {
+					farmId: farm.id,
+					animalId
+				}
+			});
+
+			if (alreadyHasAnimal) {
+				return Result.err('You already have this animal.');
+			}
+
 			// Add the animal to the user's farm
 			await container.database.farmAnimal.create({
 				data: {

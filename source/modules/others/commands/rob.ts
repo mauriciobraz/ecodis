@@ -14,6 +14,7 @@ import {
 import { DiscordJSUtils } from '../../../utils/discordjs';
 import { UserQueries } from '../../../utils/queries/user';
 import { ROBBERY_COOLDOWN } from '../../../utils/constants';
+import { ItemSlug } from '../../../utils/items';
 
 @ApplyOptions<Command.Options>({
 	name: 'roubar',
@@ -56,9 +57,33 @@ export class RobCommand extends Command {
 				id: true,
 				balance: true,
 				energy: true,
-				committedCrimeAt: true
+				committedCrimeAt: true,
+				inventory: {
+					select: {
+						items: {
+							where: {
+								item: {
+									slug: {
+										in: [ItemSlug.HK416, ItemSlug.M4A1, ItemSlug.AK47]
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		});
+
+		// Check if user has a gun
+		if (userGuildData.inventory?.items.length === 0) {
+			await DiscordJSUtils.replyAndDelete(
+				message,
+				'Você precisa de uma arma para roubar! Tá se achando o que? O Batman?',
+				30
+			);
+
+			return;
+		}
 
 		const cooldownDate = userGuildData.committedCrimeAt
 			? new Date(userGuildData.committedCrimeAt.getTime() + ROBBERY_COOLDOWN)
