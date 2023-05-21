@@ -253,7 +253,7 @@ export default class GreenhouseCommand extends Command {
 					? this.container.canvasGreenhouseImages.potTomatoStage1
 					: this.container.canvasGreenhouseImages.potTomatoStage2;
 
-				ctx.drawImage(plantImage, 1291 + x * 173, 133 + y * 304);
+				ctx.drawImage(plantImage, 1285 + x * 173, 49 + y * 304);
 			}
 		}
 
