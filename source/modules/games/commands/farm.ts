@@ -369,19 +369,24 @@ export default class FarmCommand extends Command {
 			}
 		}
 
-		// Numeração das sementes
 		for (let i = 0; i < SEEDS_POSITIONS.length; i++) {
 			const plantX = SEEDS_POSITIONS[i][0];
 			const plantY = SEEDS_POSITIONS[i][1];
 
-			context.font = '62px sans-serif bold';
+			context.font = '62px sans-serif';
 			context.textAlign = 'center';
-			context.lineWidth = 32;
+			context.strokeStyle = 'black';
+
 			context.fillStyle = 'white';
 			context.shadowColor = 'black';
-			context.shadowBlur = 4;
 
-			context.fillText(`${i + 1}`, plantX + 10, plantY + 40);
+			context.lineWidth = 12;
+
+			const seedHeight = 474 - 20;
+			const textY = plantY + seedHeight - 20;
+
+			context.strokeText(`${i + 1}`, plantX, textY);
+			context.fillText(`${i + 1}`, plantX, textY);
 
 			context.shadowColor = 'transparent';
 			context.shadowBlur = 0;
