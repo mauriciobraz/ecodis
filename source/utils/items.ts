@@ -13,12 +13,11 @@ export enum ItemSlug {
 	Emerald = 'Emerald',
 	Ruby = 'Ruby',
 
+	Egg = 'Egg',
 	Banana = 'Banana',
 	Chocolate = 'Chocolate',
 	Cafe = 'Café',
 	RedBull = 'RedBull',
-
-	Egg = 'Egg',
 
 	Wheat = 'Wheat',
 	Beans = 'Beans',
@@ -89,7 +88,23 @@ export const DEFAULT_ITEM_DATA: Partial<Record<ItemSlug, object>> = {
 	// Consumables
 
 	[ItemSlug.Egg]: {
-		energy: 10
+		energy: 50
+	} as z.infer<typeof ZodParsers.Consumable>,
+
+	[ItemSlug.Banana]: {
+		energy: 50
+	} as z.infer<typeof ZodParsers.Consumable>,
+
+	[ItemSlug.Chocolate]: {
+		energy: 50
+	} as z.infer<typeof ZodParsers.Consumable>,
+
+	[ItemSlug.Cafe]: {
+		energy: 50
+	} as z.infer<typeof ZodParsers.Consumable>,
+
+	[ItemSlug.RedBull]: {
+		energy: 250
 	} as z.infer<typeof ZodParsers.Consumable>,
 
 	// Seeds

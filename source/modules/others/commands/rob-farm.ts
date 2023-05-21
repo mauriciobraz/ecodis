@@ -133,6 +133,9 @@ export class RobFarmCommand extends Command {
 
 		const newPlantData = plantDataParsed.data.map((row) =>
 			row.map((plant) => {
+				// Check
+				plant.amountRobbed;
+
 				if (plant !== null && remainingPlants > 0) {
 					remainingPlants--;
 					robbedPlants.push(plant);

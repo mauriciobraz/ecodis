@@ -33,7 +33,8 @@ export const PlantDataSchema = z.object({
 	itemId: z.string(),
 	itemSlug: z.enum(SEEDS_SLUGS),
 	createdAt: z.string().datetime(),
-	growthRate: z.number().min(0).max(100)
+	growthRate: z.number().min(0).max(100),
+	amountRobbed: z.number().default(0)
 });
 
 /**

@@ -1,4 +1,5 @@
 import { ApplyOptions } from '@sapphire/decorators';
+import type { Args } from '@sapphire/framework';
 import { Command } from '@sapphire/framework';
 import type { Message } from 'discord.js';
 
@@ -13,15 +14,18 @@ import type { Message } from 'discord.js';
 	preconditions: ['GuildOnly']
 })
 export class RevistarCommand extends Command {
-	public override async messageRun(message: Message<true>) {
-		const user = message.mentions.users.first();
-		if (!user) {
+	public override async messageRun(message: Message<true>, args: Args) {
+		const userResult = await args.pickResult('user');
+
+		if (userResult.isErr()) {
 			await message.reply({
 				content: 'Por favor, mencione um usuário para revistar.'
 			});
 
 			return;
 		}
+
+		const user = userResult.unwrap();
 
 		const targetInventory = await this.container.database.inventory.findUnique({
 			where: {

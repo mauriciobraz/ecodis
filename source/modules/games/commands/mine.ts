@@ -97,8 +97,12 @@ const DEFAULT_GENERATE_GRID_OPTIONS: GenerateGridOptions = {
 /** There is a limit of 5x5 for the grid size because of Discord's limitations. */
 const MAX_GRID_SIZE = 5;
 
-/** The amount of time in milliseconds to wait for a response from the user. */
-const RESPONSE_TIMEOUT = 3e3;
+/** The amount of energy lost per mine. */
+const ENERGY_LOSS_PER_MINE = 8;
+
+function clamp(min: number, max: number, value: number) {
+	return Math.max(min, Math.min(max, value));
+}
 
 @ApplyOptions<Command.Options>({
 	name: 'mina',
@@ -233,7 +237,11 @@ export class MineCommand extends Command {
 
 		const gridComponents = MineCommand.parseGridToDiscordComponents(grid);
 
-		const gameEndsAt = time(addMilliseconds(new Date(), RESPONSE_TIMEOUT * currentRound), 'R');
+		const m = -0.03333;
+		const b = 6;
+		const timeout = Math.ceil(clamp(m * pickaxe.durability + b, 3, 6));
+
+		const gameEndsAt = time(addMilliseconds(new Date(), timeout), 'R');
 		const gameStartedContent = `Esta partida acabará ${gameEndsAt} (durabilidade da picareta: ${pickaxe.durability})`;
 
 		let message: Message | null = null;
@@ -276,7 +284,7 @@ export class MineCommand extends Command {
 				filter: (componentInteraction) =>
 					componentInteraction.user.id === userId &&
 					componentInteraction.customId.startsWith('MINE&'),
-				time: RESPONSE_TIMEOUT
+				time: timeout
 			})
 		);
 
@@ -295,6 +303,43 @@ export class MineCommand extends Command {
 
 		await componentInteraction.deferUpdate();
 		await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
+
+		const guild = await container.database.guild.upsert({
+			where: { discordId: interactionOrMessage.guildId! },
+			create: { discordId: interactionOrMessage.guildId! },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const user = await container.database.user.upsert({
+			where: { discordId: userId },
+			create: { discordId: userId },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		await container.database.userGuildData.upsert({
+			where: {
+				userId_guildId: {
+					userId: user.id,
+					guildId: guild.id
+				}
+			},
+			create: {
+				energy: 1000 - ENERGY_LOSS_PER_MINE,
+				userId: user.id,
+				guildId: guild.id
+			},
+			update: {
+				energy: {
+					decrement: ENERGY_LOSS_PER_MINE
+				}
+			}
+		});
 
 		if (grid[x][y].isFake || grid[x][y].item === MineItem.Stone) {
 			return { status: 'Lost' as const, message };

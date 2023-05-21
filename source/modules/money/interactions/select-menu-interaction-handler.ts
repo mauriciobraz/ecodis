@@ -402,7 +402,7 @@ export class SelectMenuInteractionHandler extends InteractionHandler {
 		priceInDiamonds: boolean,
 		showSellAllButton: boolean
 	) {
-		const AMOUNTS = [1, 3, 6, 9];
+		const AMOUNTS = [1, 3, 6, 9, 18, 21, 36];
 
 		return new StringSelectMenuBuilder()
 			.setCustomId(customId)

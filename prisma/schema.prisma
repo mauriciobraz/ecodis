@@ -279,6 +279,6 @@ model Greenhouse {
   // number[][]
   purchasedArea Json
 
-  // { createdAt, growthRate, itemId, itemSlug }[]
+  // { createdAt, growthRate, itemId, itemSlug, amountRobbed }[]
   plantData Json
 }
