@@ -10,12 +10,12 @@ import {
 	event: Events.MessageCommandError
 })
 export class MessageCommandErrorListener extends Listener {
-	public override async run(error: UserError, payload: MessageCommandErrorPayload) {
+	public override run(error: UserError, payload: MessageCommandErrorPayload) {
 		if (Reflect.get(Object(error.context), 'silent') || process.env.NODE_ENV !== 'development')
 			return;
 
-		await payload.message.reply({
-			content: error.message
-		});
+		this.container.logger.error(
+			`[COMMAND] ${payload.message.author.tag} (${payload.message.author.id}) ran command ${payload.command.name} (${payload.command.location.full})`
+		);
 	}
 }
