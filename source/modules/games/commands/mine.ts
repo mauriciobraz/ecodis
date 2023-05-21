@@ -164,13 +164,10 @@ export class MineCommand extends Command {
 			status = result.status;
 
 			switch (result.status) {
-				case 'Continue':
-					continue;
-
 				case 'Lost':
-					break;
-
 				case 'Timeout':
+				case 'Continue':
+				case 'PickaxeBroke':
 					break;
 
 				default:
@@ -195,8 +192,16 @@ export class MineCommand extends Command {
 
 				break;
 
+			case 'PickaxeBroke':
+				await messageToEdit?.edit({
+					content: 'Sua picareta quebrou! Compre uma nova na loja.',
+					components: []
+				});
+
+				break;
+
 			default:
-				throw new Error('Unexpected: The result is not valid.');
+				throw new Error(`Unexpected: The status "${status}" is not valid.`);
 		}
 	}
 
@@ -276,7 +281,7 @@ export class MineCommand extends Command {
 		);
 
 		if (collectorResult.isErr()) {
-			return { status: 'Timeout', message };
+			return { status: 'Timeout' as const, message };
 		}
 
 		const componentInteraction = collectorResult.unwrap();
@@ -292,20 +297,20 @@ export class MineCommand extends Command {
 		await MineCommand.handleDurabilityLoss(pickaxe.inventoryItemId);
 
 		if (grid[x][y].isFake || grid[x][y].item === MineItem.Stone) {
-			return { status: 'Lost', message };
+			return { status: 'Lost' as const, message };
 		}
 
 		await MineCommand.handleItemFound(item as ItemSlug, userId, interactionOrMessage.guildId!);
 
 		if (item === MineItem.Stone) {
 			return {
-				status: 'Lost',
+				status: 'Lost' as const,
 				message
 			};
 		}
 
 		return {
-			status: 'Continue',
+			status: pickaxe.durability === 1 ? 'PickaxeBroke' : 'Continue',
 			message
 		};
 	}

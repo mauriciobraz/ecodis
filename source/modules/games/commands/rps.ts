@@ -2,8 +2,8 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { pickRandom } from '@sapphire/utilities';
 
-import { MINIMUM_BET_AMOUNT, calculatePrize } from '../utilities';
 import { UserQueries } from '../../../utils/queries/user';
+import { MINIMUM_BET_AMOUNT } from '../utilities';
 
 import type { Args } from '@sapphire/framework';
 import type { Message } from 'discord.js';
@@ -91,9 +91,13 @@ export class RockPaperScissorsCommand extends Command {
 			return;
 		}
 
-		const { isTie, prize } = this.handleGame(choice);
+		const { isTie, prize } = this.handleGame(choice, amount);
 
-		if (prize !== 0) {
+		console.log({
+			prize
+		});
+
+		if (prize > 0) {
 			const { updatedBalance } = await UserQueries.updateBalance({
 				userId: message.author.id,
 				guildId: message.guildId,
@@ -103,6 +107,8 @@ export class RockPaperScissorsCommand extends Command {
 			await message.reply({
 				content: `Ganhaste ${prize} moedas! O teu saldo atual é de ${updatedBalance} moedas.`
 			});
+
+			return;
 		}
 
 		if (prize < 0) {
@@ -132,34 +138,44 @@ export class RockPaperScissorsCommand extends Command {
 	}
 
 	/** Checks if the user won the game. */
-	private didUserWin(userChoice: RPSChoice, machineChoice: RPSChoice) {
+	private didUserWin(userChoice: string, machineChoice: string) {
 		return (
-			(userChoice === RPSChoice.Rock && machineChoice === RPSChoice.Scissors) ||
-			(userChoice === RPSChoice.Paper && machineChoice === RPSChoice.Rock) ||
-			(userChoice === RPSChoice.Scissors && machineChoice === RPSChoice.Paper)
+			(userChoice.toLowerCase() === RPSChoice.Rock.toLowerCase() &&
+				machineChoice.toLowerCase() === RPSChoice.Scissors.toLowerCase()) ||
+			(userChoice.toLowerCase() === RPSChoice.Paper.toLowerCase() &&
+				machineChoice.toLowerCase() === RPSChoice.Rock.toLowerCase()) ||
+			(userChoice.toLowerCase() === RPSChoice.Scissors.toLowerCase() &&
+				machineChoice.toLowerCase() === RPSChoice.Paper.toLowerCase())
 		);
 	}
 
 	/** Handles the logic of this game and calculate the amount of prize. */
-	private handleGame(userChoice: RPSChoice) {
-		const machineChoice = pickRandom(Object.keys(RPS_CHOICES)) as RPSChoice;
+	private handleGame(userChoice: RPSChoice, bet: number) {
+		const machineChoice = pickRandom(Object.values(RPSChoice)).toLowerCase();
 
-		if (userChoice === machineChoice) {
+		if (userChoice.toLowerCase() === machineChoice.toLowerCase()) {
 			return {
 				prize: 0,
 				isTie: true
 			};
 		}
 
-		if (this.didUserWin(userChoice, machineChoice)) {
+		console.log({
+			machineChoice,
+			userChoice
+		});
+
+		const didUserWin = this.didUserWin(userChoice.toLowerCase(), machineChoice.toLowerCase());
+
+		if (didUserWin) {
 			return {
-				prize: calculatePrize(),
+				prize: bet + bet * 0.9,
 				isTie: false
 			};
 		}
 
 		return {
-			prize: -calculatePrize(),
+			prize: -bet,
 			isTie: false
 		};
 	}

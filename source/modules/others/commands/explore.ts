@@ -35,13 +35,6 @@ const ALLOWED_ITEMS = [
 })
 export class ExploreCommand extends Command {
 	public override async messageRun(message: Message<true>) {
-		// 1. Check if the user has a animal of kind pet;
-		// 2. If yes, get the first;
-		// 3. Randomly select a item from that animal's loot table;
-		// 4. Add the item to the user's inventory;
-		// 5. Calculates a chance of the pet getting a disease;
-
-		// Ensure user and its inventory exists
 		const user = await UserQueries.getOrCreate(message.author.id);
 		await ShopQueries.getInventory(message.author.id, message.guildId);
 
