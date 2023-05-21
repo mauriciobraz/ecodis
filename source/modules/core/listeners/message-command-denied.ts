@@ -17,5 +17,7 @@ export class MessageCommandDeniedListener extends Listener {
 		this.container.logger.error(
 			`[COMMAND] ${payload.message.author.tag} (${payload.message.author.id}) ran command ${payload.command.name} (${payload.command.location.full})`
 		);
+
+		this.container.logger.error(error);
 	}
 }

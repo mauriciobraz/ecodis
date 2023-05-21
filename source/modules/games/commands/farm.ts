@@ -482,8 +482,6 @@ export default class FarmCommand extends Command {
 				const growthRemaining = 100 - cell.growthRate;
 				const timeRemainingInSeconds = (growthRemaining * growthTimeInSeconds) / 100;
 
-				const startTime = new Date(0, 0, 0, 0, 0, 0);
-
 				const timeDuration = intervalToDuration({
 					start: 0,
 					end: timeRemainingInSeconds * 1000
@@ -615,11 +613,13 @@ export default class FarmCommand extends Command {
 			: new Date(0);
 
 		const isInCooldown =
-			authorUserGuildData.robFarmRemainingCount <= 1 && cooldownDate > new Date();
+			authorUserGuildData.robFarmRemainingCount <= 0 || cooldownDate > new Date();
 
 		if (isInCooldown) {
 			await interaction.reply({
-				content: `Você só poderá roubar outra fazenda ${time(cooldownDate, 'R')}.`,
+				content: `Você só poderá roubar outra fazenda ${
+					cooldownDate ? time(cooldownDate, 'R') : 'em uma hora'
+				}.`,
 				ephemeral: true
 			});
 
@@ -707,13 +707,13 @@ export default class FarmCommand extends Command {
 		});
 
 		let inventory = await this.container.database.inventory.findUnique({
-			where: { userId: targetUserGuildData.id }
+			where: { userId: authorUserGuildData.id }
 		});
 
 		if (!inventory) {
 			inventory = await this.container.database.inventory.create({
 				data: {
-					userId: targetUserGuildData.id
+					userId: authorUserGuildData.id
 				}
 			});
 		}
@@ -730,7 +730,7 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		if (amountOfPlant) {
+		if (amountOfPlant?.amount) {
 			await this.container.database.inventoryItem.update({
 				where: {
 					itemId_inventoryId: {
@@ -790,7 +790,7 @@ export default class FarmCommand extends Command {
 		const inventory = await ShopQueries.getInventory(interaction.user.id, interaction.guildId);
 
 		const userSeeds = inventory.items.filter((item) =>
-			SEEDS_SLUGS.some((seed) => seed === item.slug)
+			SEEDS_SLUGS.some((seed) => seed === item.slug && item.amount > 0)
 		);
 
 		if (!userSeeds.length) {
@@ -821,10 +821,15 @@ export default class FarmCommand extends Command {
 			userSeedsSelectMenu
 		);
 
-		await interaction.reply({
-			components: [userSeedsRow],
-			ephemeral: true
-		});
+		if (interaction.replied)
+			await interaction.editReply({
+				components: [userSeedsRow]
+			});
+		else
+			await interaction.reply({
+				components: [userSeedsRow],
+				ephemeral: true
+			});
 
 		const channel =
 			interaction.channel ??
@@ -915,7 +920,7 @@ export default class FarmCommand extends Command {
 			return;
 		}
 
-		if (seedInventoryItem.amount < emptyCells) {
+		if (seedInventoryItem.amount > emptyCells) {
 			await interaction.editReply({
 				content: `Você não tem sementes suficientes para plantar. Você tem ${seedInventoryItem.amount} sementes de ${seedInventoryItem.item.name} no seu inventário.`,
 				components: []

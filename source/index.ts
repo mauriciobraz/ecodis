@@ -42,6 +42,10 @@ const bree = new Bree({
 			interval: 'every 5 seconds'
 		},
 		{
+			name: 'regenerateEnergy',
+			interval: 'every 1 hour'
+		},
+		{
 			name: 'growthRate',
 			interval: 'every 5 seconds'
 		},

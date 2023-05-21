@@ -327,25 +327,6 @@ export async function createItemsIfNotExists() {
 	// Foods
 	// Foods
 
-	// await container.database.item.upsert({
-	// 	where: {
-	// 		slug: ItemSlug.Ration
-	// 	},
-	// 	create: {
-	// 		slug: ItemSlug.Ration,
-	// 		type: ItemType.Food,
-
-	// 		emoji: '🍞',
-	// 		price: 100,
-
-	// 		name: 'Ração para Animais',
-	// 		description: 'Ração para alimentar os seus animais.',
-
-	// 		data: DEFAULT_ITEM_DATA[ItemSlug.Ration]
-	// 	},
-	// 	update: {}
-	// });
-
 	await container.database.item.upsert({
 		where: {
 			slug: ItemSlug.Banana
@@ -358,7 +339,9 @@ export async function createItemsIfNotExists() {
 			price: 500,
 
 			name: 'Banana',
-			description: 'Uma fruta amarela e saborosa.'
+			description: 'Uma fruta amarela e saborosa.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Banana]
 		},
 		update: {}
 	});
@@ -375,7 +358,9 @@ export async function createItemsIfNotExists() {
 			price: 800,
 
 			name: 'Chocolate',
-			description: 'Um doce feito de cacau.'
+			description: 'Um doce feito de cacau.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.Chocolate]
 		},
 		update: {}
 	});
@@ -409,7 +394,9 @@ export async function createItemsIfNotExists() {
 			price: 2000,
 
 			name: 'RedBull',
-			description: 'Uma bebida energética.'
+			description: 'Uma bebida energética.',
+
+			data: DEFAULT_ITEM_DATA[ItemSlug.RedBull]
 		},
 		update: {}
 	});

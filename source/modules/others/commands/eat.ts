@@ -52,12 +52,8 @@ export class EatCommand extends Command {
 			return;
 		}
 
-		console.log({ consumables });
-
-		// Ask for which consumable to use
-
 		const consumablesSelectMenu = new StringSelectMenuBuilder()
-			.setCustomId(`CHOOSE_CONSUMABLE-${message.id}`)
+			.setCustomId('CHOOSE_CONSUMABLE')
 			.setPlaceholder('Escolha uma comida para comer')
 			.addOptions(
 				consumables.map((consumable) => ({
@@ -76,17 +72,27 @@ export class EatCommand extends Command {
 		});
 
 		const selectedConsumableResult = await Result.fromAsync(
-			message.awaitMessageComponent({
+			msg.awaitMessageComponent({
 				componentType: ComponentType.StringSelect,
-				filter: (i) =>
-					i.user.id === message.author.id &&
-					i.customId === `CHOOSE_CONSUMABLE-${message.id}`,
+				filter: (i) => {
+					console.log({
+						userId: i.user.id,
+						messageAuthorId: message.author.id,
+						customId: i.customId
+					});
+
+					return i.user.id === message.author.id && i.customId === `CHOOSE_CONSUMABLE`;
+				},
 				time: 60e3
 			})
 		);
 
+		console.log('GOT SELECTED CONSUMABLE RESULT');
+		console.log('GOT SELECTED CONSUMABLE RESULT');
+		console.log('GOT SELECTED CONSUMABLE RESULT');
+
 		if (selectedConsumableResult.isErr()) {
-			await DiscordJSUtils.editAndDelete(message, {
+			await DiscordJSUtils.editAndDelete(msg, {
 				content: 'Você não escolheu um item consumível a tempo.',
 				components: []
 			});
@@ -98,23 +104,24 @@ export class EatCommand extends Command {
 		const consumable = consumables.find((c) => c.id === selectedConsumable.values[0]);
 
 		if (!consumable) {
-			await DiscordJSUtils.editAndDelete(message, {
+			await selectedConsumable.reply({
 				content: 'Você não escolheu um item consumível a tempo.',
-				components: []
+				ephemeral: true
 			});
 
 			return;
 		}
 
-		// Use the consumable
-		ZodParsers.Consumable;
+		console.log({
+			d: consumable.item.data
+		});
 
 		const consumableParsed = ZodParsers.Consumable.safeParse(consumable.item.data);
 
 		if (!consumableParsed.success) {
-			await DiscordJSUtils.editAndDelete(message, {
+			await selectedConsumable.reply({
 				content: 'Ocorreu um erro ao consumir o item. Reporte isso para um administrador.',
-				components: []
+				ephemeral: true
 			});
 
 			return;
@@ -142,9 +149,9 @@ export class EatCommand extends Command {
 			}
 		});
 
-		await DiscordJSUtils.editAndDelete(msg, {
+		await selectedConsumable.reply({
 			content: `Você comeu ${consumable.item.emoji} ${consumable.item.name} e recuperou ${consumableData.energy} de energia.`,
-			components: []
+			ephemeral: true
 		});
 	}
 }

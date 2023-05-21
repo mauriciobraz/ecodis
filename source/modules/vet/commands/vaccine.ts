@@ -23,12 +23,23 @@ export class TratarCommand extends Command {
 		const targetUserResult = await args.pickResult('user');
 		const treatmentTypeResult = await args.pickResult('string');
 
+		if (targetUserResult.isErr()) {
+			await DiscordJSUtils.replyAndDelete(
+				message,
+				'Usuário inválido. Por favor, mencione um usuário válido.',
+				5000
+			);
+
+			return;
+		}
+
 		if (treatmentTypeResult.isErr()) {
 			await DiscordJSUtils.replyAndDelete(
 				message,
 				'Tratamento inválido. Por favor, especifique um tratamento válido.',
 				5000
 			);
+
 			return;
 		}
 
@@ -73,6 +84,7 @@ export class TratarCommand extends Command {
 				'O usuário não possui animais com a doença para que o tratamento possa ser aplicado.',
 				5000
 			);
+
 			return;
 		}
 
@@ -106,6 +118,7 @@ export class TratarCommand extends Command {
 				'O usuário não possui tratamentos disponíveis para serem aplicados.',
 				5000
 			);
+
 			return;
 		}
 
@@ -119,6 +132,7 @@ export class TratarCommand extends Command {
 				'Que estranho, parece que você não tem esse tratamento.',
 				5000
 			);
+
 			return;
 		}
 

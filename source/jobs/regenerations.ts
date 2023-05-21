@@ -10,12 +10,9 @@ async function main(): Promise<void> {
 	await prismaClient.$connect();
 
 	const regeneratedArrests = await regenerateArrests(prismaClient);
-	const regeneratedEnergies = await regenerateEnergies(prismaClient);
 
 	if (parentPort) {
-		parentPort.postMessage(
-			`Regenerated ${regeneratedArrests} arrests and ${regeneratedEnergies} energies.`
-		);
+		parentPort.postMessage(`Regenerated ${regeneratedArrests} arrests.`);
 	} else {
 		process.exit(0);
 	}
@@ -45,28 +42,6 @@ async function regenerateArrests(prismaClient: PrismaClient) {
 		data: {
 			robFarmRemainingCount: 3,
 			robbedFarmAt: null
-		}
-	});
-
-	return affected.count;
-}
-
-/** Maximum energy a user can have (it's used to regenerate energy). */
-const MAX_ENERGY = 1000;
-
-/** Regenerates the energy for every user that has energy lower than 1000. */
-async function regenerateEnergies(prismaClient: PrismaClient) {
-	const affected = await prismaClient.userGuildData.updateMany({
-		where: {
-			energy: {
-				lt: MAX_ENERGY
-			},
-			energyUpdatedAt: {
-				lt: new Date(Date.now() - Time.Day)
-			}
-		},
-		data: {
-			energy: MAX_ENERGY
 		}
 	});
 

@@ -239,7 +239,7 @@ export class MineCommand extends Command {
 
 		const m = -0.03333;
 		const b = 6;
-		const timeout = Math.ceil(clamp(m * pickaxe.durability + b, 3, 6));
+		const timeout = Math.ceil(clamp(m * pickaxe.durability + b, 5, 8));
 
 		const gameEndsAt = time(addMilliseconds(new Date(), timeout), 'R');
 		const gameStartedContent = `Esta partida acabará ${gameEndsAt} (durabilidade da picareta: ${pickaxe.durability})`;
@@ -284,7 +284,7 @@ export class MineCommand extends Command {
 				filter: (componentInteraction) =>
 					componentInteraction.user.id === userId &&
 					componentInteraction.customId.startsWith('MINE&'),
-				time: timeout
+				time: timeout * 1000
 			})
 		);
 

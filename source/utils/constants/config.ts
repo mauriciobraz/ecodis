@@ -14,7 +14,10 @@ export const configSchema = z.object({
 
 	DAILY_AMOUNT: z.string().transform((value) => parseInt(value, 10)),
 
-	ENERGY_RESET_TIME: z.string().transform((value) => parseInt(value, 10)),
+	ENERGY_RESET_TIME: z
+		.string()
+		.default('3600000')
+		.transform((value) => parseInt(value, 10)),
 
 	MAX_ENERGY: z.string().transform((value) => parseInt(value, 10))
 });

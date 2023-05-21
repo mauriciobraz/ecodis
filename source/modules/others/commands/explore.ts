@@ -140,5 +140,13 @@ export class ExploreCommand extends Command {
 				}
 			});
 		}
+
+		await DiscordJSUtils.replyAndDelete(
+			message,
+			`Você explorou o mundo e encontrou um **${loot}**${
+				gotDisease ? ` e seu animal de estimação ficou doente!` : ''
+			}`,
+			60
+		);
 	}
 }
