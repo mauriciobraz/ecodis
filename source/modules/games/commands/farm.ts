@@ -2,7 +2,7 @@ import { AnimalType, type Animal, type Farm, type FarmAnimal, type Item } from '
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command, Result } from '@sapphire/framework';
 import { createCanvas, loadImage } from 'canvas';
-import { addSeconds } from 'date-fns';
+import { addSeconds, format, type Duration, intervalToDuration } from 'date-fns';
 import {
 	ActionRowBuilder,
 	ComponentType,
@@ -84,6 +84,14 @@ const SEEDS_POSITIONS = [
 	[641.55, 380.1],
 	[943.95, 255.15]
 ];
+
+function formatTimeDuration(duration: Duration) {
+	const hours = duration.hours?.toString().padStart(2, '0');
+	const minutes = duration.minutes?.toString().padStart(2, '0');
+	const seconds = duration.seconds?.toString().padStart(2, '0');
+
+	return `${hours}h ${minutes}m ${seconds}s`;
+}
 
 @ApplyOptions<Command.Options>({
 	name: 'fazenda',
@@ -431,59 +439,19 @@ export default class FarmCommand extends Command {
 			for (let x = 0; x < farm.plantData[y].length; x++) {
 				const cell = farm.plantData[y][x];
 
-				if (!cell) {
-					continue;
-				}
-
 				const plantX = SEEDS_POSITIONS[y * farm.plantData[y].length + x][0];
 				const plantY = SEEDS_POSITIONS[y * farm.plantData[y].length + x][1];
 
-				// This is cached by prisma-redis-cache, so it's fine to do this here.
-				const item = await this.container.database.item.findUnique({
-					where: {
-						id: cell.itemId
-					},
-					select: {
-						data: true,
-						updatedAt: true
-					}
-				});
-
-				const itemData = item?.data as z.infer<typeof ZodParsers.Seed>;
-
-				const growthRemaining = 100 - cell.growthRate;
-
-				// note que nós estamos dividindo por 60 ao invés de 3600, porque nós queremos o resultado em minutos
-				const timeRemainingInMinutes = (growthRemaining * itemData.growthTime) / 60;
-
-				// Convertendo para segundos
-				const timeRemainingInSeconds = timeRemainingInMinutes * 60;
-
-				const hours = Math.floor(timeRemainingInMinutes / 60);
-				const minutes = Math.floor(timeRemainingInMinutes % 60);
-				const seconds = Math.floor(timeRemainingInSeconds % 60);
-
-				// Se minutos ou segundos for menos que 10, acrescentamos um zero à frente para manter a formatação consistente.
-				const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-				const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
-
-				const timeText = `${hours}h ${formattedMinutes}m ${formattedSeconds}s`;
-
-				context.font = '42px sans-serif';
-				context.fillStyle = 'white';
-				context.strokeStyle = 'black';
-				context.lineWidth = 8;
+				const textXOffset = 15;
 
 				const seedHeight = 474 - 20;
 				const textYTime = plantY + seedHeight - 40;
 				const textYNumber = textYTime + 65;
 
-				const textXOffset = 15;
-
-				// Display remaining time
-				context.textAlign = 'center';
-				context.strokeText(timeText, plantX + textXOffset, textYTime);
-				context.fillText(timeText, plantX + textXOffset, textYTime);
+				context.font = '42px sans-serif';
+				context.fillStyle = 'white';
+				context.strokeStyle = 'black';
+				context.lineWidth = 8;
 
 				// Display the seed number
 				context.strokeText(
@@ -491,11 +459,44 @@ export default class FarmCommand extends Command {
 					plantX + textXOffset,
 					textYNumber
 				);
+
 				context.fillText(
 					`${y * farm.plantData[y].length + x + 1}`,
 					plantX + textXOffset,
 					textYNumber
 				);
+
+				if (!cell) {
+					continue;
+				}
+
+				// This is cached by prisma-redis-cache, so it's fine to do this here.
+				const item = await this.container.database.item.findUnique({
+					where: { id: cell?.itemId },
+					select: { data: true, updatedAt: true }
+				});
+
+				const itemData = item?.data as z.infer<typeof ZodParsers.Seed>;
+
+				const growthTimeInSeconds = itemData.growthTime * 60;
+				const growthRemaining = 100 - cell.growthRate;
+				const timeRemainingInSeconds = (growthRemaining * growthTimeInSeconds) / 100;
+
+				const startTime = new Date(0, 0, 0, 0, 0, 0);
+
+				const timeDuration = intervalToDuration({
+					start: 0,
+					end: timeRemainingInSeconds * 1000
+				});
+
+				const timeText = formatTimeDuration(timeDuration);
+
+				// Display remaining time
+				if (cell.growthRate < 100 && cell.growthRate > 0) {
+					context.textAlign = 'center';
+					context.strokeText(timeText, plantX + textXOffset, textYTime);
+					context.fillText(timeText, plantX + textXOffset, textYTime);
+				}
 
 				context.shadowColor = 'transparent';
 				context.shadowBlur = 0;
@@ -569,41 +570,54 @@ export default class FarmCommand extends Command {
 			}
 		});
 
-		const userDatabase = await this.container.database.user.upsert({
-			where: { discordId: targetUserId },
-			create: { discordId: targetUserId },
+		const authorUserDatabase = await this.container.database.user.upsert({
+			where: { discordId: interaction.user.id },
+			create: { discordId: interaction.user.id },
 			update: {},
 			select: {
 				id: true
 			}
 		});
 
-		const userGuildData = await this.container.database.userGuildData.upsert({
+		const authorUserGuildData = await this.container.database.userGuildData.upsert({
 			where: {
 				userId_guildId: {
 					guildId: guildDatabase.id,
-					userId: userDatabase.id
+					userId: authorUserDatabase.id
 				}
 			},
 			create: {
-				userId: userDatabase.id,
+				userId: authorUserDatabase.id,
 				guildId: guildDatabase.id
 			},
 			update: {},
 			select: {
-				id: true,
 				balance: true,
-				energy: true,
 				committedCrimeAt: true,
-				farm: true
+				energy: true,
+				farm: true,
+				id: true,
+				robFarmRemainingCount: true
 			}
 		});
 
-		const cooldownDate = userGuildData.committedCrimeAt
-			? addSeconds(userGuildData.committedCrimeAt, FARM_ROBBERY_COOLDOWN)
+		if (authorUserGuildData.energy < ROBBERY_ENERGY_COST) {
+			await interaction.reply({
+				content: `Você não tem energia suficiente para roubar uma fazenda. Você precisa de ${ROBBERY_ENERGY_COST} energia para roubar uma fazenda.`,
+				ephemeral: true
+			});
+
+			return;
+		}
+
+		const cooldownDate = authorUserGuildData.committedCrimeAt
+			? addSeconds(authorUserGuildData.committedCrimeAt, FARM_ROBBERY_COOLDOWN)
 			: new Date(0);
 
-		if (cooldownDate > new Date()) {
+		const isInCooldown =
+			authorUserGuildData.robFarmRemainingCount <= 1 && cooldownDate > new Date();
+
+		if (isInCooldown) {
 			await interaction.reply({
 				content: `Você só poderá roubar outra fazenda ${time(cooldownDate, 'R')}.`,
 				ephemeral: true
@@ -614,7 +628,33 @@ export default class FarmCommand extends Command {
 
 		const user = await this.container.client.users.fetch(targetUserId);
 
-		if (userGuildData.farm === null) {
+		const targetUserDatabase = await this.container.database.user.upsert({
+			where: { discordId: user.id },
+			create: { discordId: user.id },
+			update: {},
+			select: {
+				id: true
+			}
+		});
+
+		const targetUserGuildData = await this.container.database.userGuildData.upsert({
+			where: {
+				userId_guildId: {
+					guildId: guildDatabase.id,
+					userId: targetUserDatabase.id
+				}
+			},
+			create: {
+				userId: targetUserDatabase.id,
+				guildId: guildDatabase.id
+			},
+			update: {},
+			include: {
+				farm: true
+			}
+		});
+
+		if (targetUserGuildData.farm === null) {
 			await interaction.reply({
 				content: `**${user.tag}** não tem uma fazenda para roubar!`,
 				ephemeral: true
@@ -623,7 +663,7 @@ export default class FarmCommand extends Command {
 			return;
 		}
 
-		const plantDataParsed = PlantDataGridSchema.safeParse(userGuildData.farm.plantData);
+		const plantDataParsed = PlantDataGridSchema.safeParse(targetUserGuildData.farm.plantData);
 
 		if (!plantDataParsed.success) {
 			await interaction.reply({
@@ -654,7 +694,7 @@ export default class FarmCommand extends Command {
 
 		await this.container.database.farm.update({
 			where: {
-				id: userGuildData.farm.id
+				id: targetUserGuildData.farm.id
 			},
 			data: {
 				plantData: newPlantData
@@ -662,23 +702,18 @@ export default class FarmCommand extends Command {
 		});
 
 		await this.container.database.userGuildData.update({
-			where: {
-				id: userGuildData.id
-			},
-			data: {
-				energy: { decrement: ROBBERY_ENERGY_COST },
-				farm: { update: { plantData: newPlantData } }
-			}
+			where: { id: targetUserGuildData.id },
+			data: { farm: { update: { plantData: newPlantData } } }
 		});
 
 		let inventory = await this.container.database.inventory.findUnique({
-			where: { userId: userGuildData.id }
+			where: { userId: targetUserGuildData.id }
 		});
 
 		if (!inventory) {
 			inventory = await this.container.database.inventory.create({
 				data: {
-					userId: userGuildData.id
+					userId: targetUserGuildData.id
 				}
 			});
 		}
@@ -720,8 +755,20 @@ export default class FarmCommand extends Command {
 		}
 
 		await this.container.database.userGuildData.update({
-			where: { id: userGuildData.id },
-			data: { committedCrimeAt: new Date() }
+			where: {
+				id: authorUserGuildData.id
+			},
+			data: {
+				robFarmRemainingCount: {
+					decrement: 1
+				},
+				energy: {
+					decrement: ROBBERY_ENERGY_COST
+				},
+				...(authorUserGuildData.robFarmRemainingCount === 0
+					? { committedCrimeAt: new Date() }
+					: { committedCrimeAt: null })
+			}
 		});
 
 		await interaction.reply({

@@ -188,6 +188,8 @@ model UserGuildData {
   robbedFarmAt     DateTime?
   committedCrimeAt DateTime?
 
+  robFarmRemainingCount Int @default(3)
+
   lastDaily   DateTime?
   lastBankFee DateTime?
 

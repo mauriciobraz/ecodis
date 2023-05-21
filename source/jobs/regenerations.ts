@@ -33,6 +33,21 @@ async function regenerateArrests(prismaClient: PrismaClient) {
 		}
 	});
 
+	await prismaClient.userGuildData.updateMany({
+		where: {
+			robFarmRemainingCount: {
+				lte: 1
+			},
+			robbedFarmAt: {
+				lte: addMilliseconds(now, -Time.Hour)
+			}
+		},
+		data: {
+			robFarmRemainingCount: 3,
+			robbedFarmAt: null
+		}
+	});
+
 	return affected.count;
 }
 

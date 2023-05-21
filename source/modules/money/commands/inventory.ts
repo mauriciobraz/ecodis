@@ -41,7 +41,7 @@ export class InventoryCommand extends Command {
 		collector.on('collect', async (btnInteraction) => {
 			const userInventory = await ShopQueries.getInventory(userId, guildId);
 
-			if (!userInventory || userInventory.items?.length === 0) {
+			if (!userInventory || userInventory.items?.length <= 0) {
 				await btnInteraction.reply({
 					content: 'Seu inventário está vazio! Compre algum item com o comando `!loja`!',
 					ephemeral: true
@@ -50,13 +50,17 @@ export class InventoryCommand extends Command {
 				return;
 			}
 
+			const description = userInventory.items
+				?.filter(({ amount }) => amount > 0)
+				.map(({ amount, emoji, name }) => `• ${emoji} ${name} **x${amount}**`)
+				.join('\n');
+
 			const inventoryEmbed = new EmbedBuilder()
 				.setTitle(`Inventário de ${message.author.tag}`)
 				.setDescription(
-					userInventory.items
-						?.filter(({ amount }) => amount > 0)
-						.map(({ amount, emoji, name }) => `• ${emoji} ${name} **x${amount}**`)
-						.join('\n')
+					description === '' || description === undefined
+						? 'Seu inventário está vazio! Compre algum item com o comando `!loja`!'
+						: description
 				)
 				.setColor(0x2b2d31);
 
